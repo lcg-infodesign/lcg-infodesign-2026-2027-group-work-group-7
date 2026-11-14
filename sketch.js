@@ -19,6 +19,8 @@ async function setup() {
 
   table = await loadTable ('assets/UNESCO_dataset.csv', ',', 'header');
   
+  // il primo ciclo serve per fargli leggere le righe del database 
+  // il secondo ciclo per catalogare il sito nella categoria
   for (let r=0; r < table.getRowCount(); r++) {
     let codiceArea = table.getString (r, 'Region_Code');
     let categoria = table.getString (r, 'Category');
@@ -50,18 +52,19 @@ function draw() {
   let yTetto = height * 0.22;
   let yZero = height * 0.72;
 
-  image(imgFrontone, margineSx -70, height *0.05, larghezzaTempio+140, height *0.7);
+  image(imgFrontone, margineSx -70, height *0.002, larghezzaTempio+140, height *0.9);
   image(imgGradinate, margineSx - 125, yZero-230, larghezzaTempio+250, 600);
 
   let larghezzaCorsia = larghezzaTempio / datiMacro.length;
   let valoreMax = 500;
 
+  // ciclo per farlo fare per ogni colonna
   for (let i=0; i < datiMacro.length; i++) {
     let centroX = margineSx + larghezzaCorsia * (i+0.5);
 
     image (imgBaseColonna, centroX - 90, yZero+10, 180, 190);
   
-
+    // i siti che nel ciclo di prima vengono catalogati qui ricevono un colore per la categoria
   let serie = [
     {val: datiMacro[i].culturali, col: '#106789'},
     {val: datiMacro[i].naturali, col: '#129348'},
@@ -72,12 +75,14 @@ function draw() {
 
   noStroke();
   for(let b=0; b< serie.length; b++) {
+    // per decidere l'altezza della barra guarda la somma dei siti
     let altezzaBarra = map(serie[b].val, 0, valoreMax, 0, yZero - yTetto);
     
     fill(serie[b].col);
     rect(startX + (b* 20), yZero - altezzaBarra + 85, 14, max(altezzaBarra, 6), 7);
   }
-
+  
+  //testo dei paesi
   fill('#2B2520');
   textAlign (CENTER, CENTER);
   textSize (11);
