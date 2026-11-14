@@ -4,7 +4,7 @@ let imgGradinate;
 
 let datiMacro = [
   {code: 'EUR', label: 'EUROPA & NORTH AMERICA', culturali:0, naturali: 0, misti:0},
-  {code: 'ASIA', label: 'ASIA', culturali:0, naturali: 0, misti:0},
+  {code: 'APA', label: 'ASIA', culturali:0, naturali: 0, misti:0},
   {code: 'LAC', label: 'AMERICA LATINA', culturali:0, naturali: 0, misti:0},
   {code: 'AFR', label: 'AFRICA', culturali:0, naturali: 0, misti:0},
   {code: 'ARB', label: 'STATI ARABI', culturali:0, naturali: 0, misti:0},
@@ -50,6 +50,37 @@ function draw() {
   let yTetto = height * 0.22;
   let yZero = height * 0.72;
 
-  image(imgFrontone, margineSx -20, height *0.05, larghezzaTempio+40, height *0.7);
-  image(imgGradinate, margineSx -15, yZero-200, larghezzaTempio+30, 600);
+  image(imgFrontone, margineSx -70, height *0.05, larghezzaTempio+140, height *0.7);
+  image(imgGradinate, margineSx - 125, yZero-230, larghezzaTempio+250, 600);
+
+  let larghezzaCorsia = larghezzaTempio / datiMacro.length;
+  let valoreMax = 500;
+
+  for (let i=0; i < datiMacro.length; i++) {
+    let centroX = margineSx + larghezzaCorsia * (i+0.5);
+
+    image (imgBaseColonna, centroX - 90, yZero+10, 180, 190);
+  
+
+  let serie = [
+    {val: datiMacro[i].culturali, col: '#106789'},
+    {val: datiMacro[i].naturali, col: '#129348'},
+    {val: datiMacro[i].misti, col: '#C12126'}
+  ];
+
+  let startX = centroX - 27;
+
+  noStroke();
+  for(let b=0; b< serie.length; b++) {
+    let altezzaBarra = map(serie[b].val, 0, valoreMax, 0, yZero - yTetto);
+    
+    fill(serie[b].col);
+    rect(startX + (b* 20), yZero - altezzaBarra + 85, 14, max(altezzaBarra, 6), 7);
+  }
+
+  fill('#2B2520');
+  textAlign (CENTER, CENTER);
+  textSize (11);
+  text(datiMacro[i].label, centroX, yZero + 137);
+}
 }
