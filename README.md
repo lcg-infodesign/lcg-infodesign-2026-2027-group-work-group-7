@@ -1,1 +1,0 @@
-# lcg-infodesign-2026-2027-group-work-group-7
