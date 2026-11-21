@@ -15,7 +15,17 @@
       let coloreTempioScuro = "rgb(20, 31, 43)";
     
     //Variabili dati
+      let fontFutura;
       let datiSitoUnesco;
+
+      let datiMacro = [
+        {code: 'EUR', label: 'EUROPA', culturali:0, naturali:0, misti:0},
+        {code: 'NA', label: 'NORD AMERICA', culturali:0, naturali:0, misti:0},
+        {code: 'APA', label: 'ASIA E PACIFICO', culturali:0, naturali:0, misti:0},
+        {code: 'LAC', label: 'AMERICA LATINA', culturali:0, naturali:0, misti:0},
+        {code: 'AFR', label: 'AFRICA', culturali:0, naturali:0, misti:0},
+        {code: 'ARB', label: 'STATI ARABI', culturali:0, naturali:0, misti:0},
+      ];
 
 // AGGIORNAMENTO SPAZI
 function aggiornaCentraggioTempio() {
@@ -35,6 +45,27 @@ function aggiornaCentraggioTempio() {
   createCanvas(windowWidth, windowHeight);
   aggiornaCentraggioTempio();
   datiSitoUnesco = await loadTable ('assets/dataset.csv', ',', 'header');
+ 
+  fontFutura = await loadFont ('assets/Futura Bold.otf');
+  textFont(fontFutura);
+
+  for (let r = 0; r < datiSitoUnesco.getRowCount(); r++) {
+    let codiceArea = datiSitoUnesco.getString(r, 'Region_Code');
+    let categoria  = datiSitoUnesco.getString(r, 'Category');
+
+  //ciclo per dividere i siti per categorie
+  for (let i=0; i < datiMacro.length; i++){
+    if (datiMacro[i].code === codiceArea){
+      if (categoria === 'Cultural'){
+        datiMacro[i].culturali++;
+      } else if (categoria === 'Natural'){
+        datiMacro[i].naturali++;
+      } else if (categoria === 'Mixed') {
+        datiMacro[i].misti++;
+      }
+      }
+    }
+  }
 }
 
 // AGGIORNAMENTO E RIDIMENSIONAMENTO
@@ -65,15 +96,6 @@ function draw () {
     altezzaFrontone
   );
 
-  // Dentro c'è la funzione che crea la singola colonna
-  disegnaColonne (
-    xInizioTempio,
-    yInizioColonne,
-    larghezzaTempio,
-    altezzaColonne,
-    yInizioBase
-  );
-  
   // ultima fascia in basso
   disegnaBase (
     xInizioTempio,
@@ -81,6 +103,17 @@ function draw () {
     larghezzaTempio,
     spessoreBase
   );
+
+  // Dentro c'è la funzione che crea la singola colonna
+  disegnaColonne (
+    xInizioTempio,
+    yInizioColonne,
+    larghezzaTempio,
+    altezzaColonne,
+    yInizioBase,
+    spessoreBase
+  );
+  
 }
 // 1. DISEGNA FRONTONE
 function disegnaFrontone (xInizioTempio, yInizioTempio,larghezzaTempio, altezzaFrontone) {
@@ -154,11 +187,11 @@ function disegnaFrontone (xInizioTempio, yInizioTempio,larghezzaTempio, altezzaF
 }
 
 // 2. IMPOSTA LA DISPOSIZIONE DELLE COLONNE
-function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezzaColonne, yInizioBase) {
+function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezzaColonne, yInizioBase, spessoreBase) {
   push ();
   noStroke ();
 
-    let numeroColonne = 6;
+    let numeroColonne = datiMacro.length;
     let larghezzaColonna = 160;
     let margineLato = 20; // rientro uguale a sinistra e a destra rispetto al tempio
 
@@ -179,7 +212,7 @@ function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezz
     push ();
     // Porta l'origine (0, 0) sul centro in alto di ogni colonna
       translate(xCentroColonna, yInizioColonne);
-      disegnaColonna (larghezzaColonna, altezzaColonne, yInizioBase - yInizioColonne);
+      disegnaColonna (larghezzaColonna, altezzaColonne, yInizioBase - yInizioColonne, datiMacro[i], spessoreBase);
     pop();
   }
   pop ();
@@ -187,7 +220,7 @@ function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezz
 
 // 3. DISEGNA LA SINGOLA COLONNA
 // (centrata su x = 0, parte da y = 0; perchè abbiamo fatto il traslate)
-function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile) {
+function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, datiArea, spessoreBase) {
   push ();
   rectMode (CORNER);
   noStroke ();
@@ -297,6 +330,33 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile) {
         }
       pop ();
 
+    //BARRE DATI
+      push();
+        noStroke();
+        let valoreMax = 500;
+        let yBaseBarre = yFineFusto - 4;
+        let altezzaMaxBarre = (yFineFusto - 4)-(yInizioFusto+8);
+
+        let serie = [
+          {val: datiArea.culturali, col: '#EBBF44'},
+          {val: datiArea.naturali, col: '#B8DD62'},
+          {val: datiArea.misti, col: '#65DAE3'}
+        ];
+
+        let larghezzaBarra = 18;
+        let distanzaBarre = 28;
+        let startX = -37;
+
+        for (let b=0; b < serie.length; b++){
+          let hBarra = map(serie[b].val, 0, valoreMax, 0, altezzaMaxBarre);
+          hBarra = max(hBarra, 6);
+
+          fill (serie[b].col);
+          rect(startX + b * distanzaBarre, yBaseBarre - hBarra, larghezzaBarra, hBarra, larghezzaBarra/2);
+        }
+      pop();
+
+
     // 3.3 PIEDE COLONNA
       push ();
         noStroke();
@@ -330,6 +390,15 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile) {
         rect(-w3 / 2, y3, w3, 6);
        pop ();
   pop ();
+
+  push();
+      textFont(fontFutura);
+      fill('#FDF0D6');
+      textAlign(CENTER, CENTER);
+      textSize(12);
+      text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
+    pop();
+  pop();
 }
 
 
