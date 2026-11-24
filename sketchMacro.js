@@ -21,13 +21,17 @@
       let datiSitoUnesco;
 
       let datiMacro = [
-        { code: 'EUR', label: 'EUROPA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
-        { code: 'NA',  label: 'NORD AMERICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
-        { code: 'APA', label: 'ASIA E PACIFICO', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
-        { code: 'LAC', label: 'AMERICA LATINA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'EUR', label: 'EUROPE', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'NA',  label: 'NORTH AMERICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'APA', label: 'ASIA AND PACIFIC', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'LAC', label: 'LATIN AMERICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
         { code: 'AFR', label: 'AFRICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
-        { code: 'ARB', label: 'STATI ARABI', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'ARB', label: 'ARAB STATES', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
       ];
+
+      // variabili per interazione colonne
+      let areaHover = -1;
+      let tooltipInfo = null;
 
 // AGGIORNAMENTO SPAZI
 function aggiornaCentraggioTempio() {
@@ -126,6 +130,10 @@ function draw () {
     yInizioBase,
     spessoreBase
   );
+
+  if (tooltipInfo !==null) {
+    disegnaTooltip(tooltipInfo);
+  }
   
 }
 // 1. DISEGNA FRONTONE
@@ -216,16 +224,36 @@ function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezz
     let spazioResiduoTotale = max(0, larghezzaUtileColonne - spazioTotaleColonne); // Imporre 0 impedisce che lo spazio tra le colonne sia negativo (così non si sovrappongono).
     let distanzaTraColonne = spazioResiduoTotale / (numeroColonne - 1);
 
+    areaHover=-1;
+    tooltipInfo=null;
+
+    for (let i = 0; i < numeroColonne; i++) {
+      let xColSinistra = (xInizioTempio + margineLato) + i * (larghezzaColonna + distanzaTraColonne);
+      let xCentroColonna = xColSinistra + larghezzaColonna / 2;
+      let metaLarghezza = (larghezzaColonna * 1.1) / 2;
+
+      if (
+        mouseX>= xCentroColonna - metaLarghezza &&
+        mouseX <= xCentroColonna + metaLarghezza &&
+        mouseY >= yInizioColonne &&
+        mouseY <= yInizioBase + spessoreBase
+      ) {
+        areaHover = i;
+      }
+    }
+
     // Ciclo for per disegnare le 6 colonne
     for (let i = 0; i < numeroColonne; i++){
       let ColonnaEDistanza = larghezzaColonna + distanzaTraColonne;
       let xColSinistra = (xInizioTempio + margineLato) + i * ColonnaEDistanza; // disegna all'inizio del Tempio
       let xCentroColonna = xColSinistra + larghezzaColonna / 2; //trova il centro orizzzontale 
 
+      let alphaColonna = (areaHover !== -1 && areaHover !== i) ? 65 : 255;
+
     push ();
     // Porta l'origine (0, 0) sul centro in alto di ogni colonna
       translate(xCentroColonna, yInizioColonne);
-      disegnaColonna (larghezzaColonna, altezzaColonne, yInizioBase - yInizioColonne, datiMacro[i], spessoreBase);
+      disegnaColonna (larghezzaColonna, altezzaColonne, yInizioBase - yInizioColonne, datiMacro[i], spessoreBase, alphaColonna, xCentroColonna, yInizioColonne);
     pop();
   }
   pop ();
@@ -233,11 +261,18 @@ function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezz
 
 // 3. DISEGNA LA SINGOLA COLONNA
 // (centrata su x = 0, parte da y = 0; perchè abbiamo fatto il traslate)
-function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, datiArea, spessoreBase) {
+function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, datiArea, spessoreBase, alphaColonna, xCentroColonna, yInizioColonne) {
   push ();
   rectMode (CORNER);
   noStroke ();
-    // Altezza totale disponibile fino alla base del tempio (o altezzaColonne)
+    
+    let colTempioAlpha = color(coloreTempioChiaro);
+    colTempioAlpha.setAlpha(alphaColonna);
+
+    let colTestoAlpha = color('#FDF0D6');
+    colTestoAlpha.setAlpha(alphaColonna);
+
+  // Altezza totale disponibile fino alla base del tempio (o altezzaColonne)
     // max => prende il numero più grande di quelli presenti.
     let altezzaTotale = max(80, altezzaDisponibile);
 
@@ -256,7 +291,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
       // formato da 5 parti (abacoAlto, abacoBasso, Corpo, FasceOrizzontali, CollarinoFusto)
       push ();
         noStroke ();
-        fill (coloreTempioChiaro);
+        fill (colTempioAlpha);
 
         // 3.1.1 abacoAlto (con estremi leggermente inclinati)
           let hAbacoAlto = altezzaCapitello * 0.24;
@@ -297,7 +332,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           let yMeta = yCorpo + hCorpo * 0.5;
           let wMeta = (wCorpoSopra + wCorpoSotto) * 0.45; // leggermente più stretto a metà per dare la curva
 
-          fill(coloreTempioChiaro);
+          fill(colTempioAlpha);
           // per creare una forma con i lati "curvilinei" devo usare una beginShape
           beginShape();
             // Lato destro (dall'alto verso il basso)
@@ -328,7 +363,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
 
     // 3.2 FUSTO COLONNA
       push ();
-        stroke(coloreTempioChiaro);
+        stroke(colTempioAlpha);
         let spessoreLineaFusto = max(1.5, larghezzaColonna * 0.01875);
         strokeWeight(spessoreLineaFusto);
 
@@ -354,16 +389,20 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
         // prende la distanza tra la base delle linee (yFineFusto + 3) e il loro inizio alto (yInizioFusto + spazioStacco),
         let altezzaMaxBarre = max(10, (yFineFusto + 3) - (yInizioFusto + spazioStacco));
         
+
         let serie = [
-        { val: datiArea.culturali, pericolo: datiArea.culturaliPericolo, col: '#EBBF44' },
-        { val: datiArea.naturali,  pericolo: datiArea.naturaliPericolo,  col: '#B8DD62' },
-        { val: datiArea.misti,     pericolo: datiArea.mistiPericolo,     col: '#65DAE3' }
-      ];
+          { nome: 'Siti Culturali', val: datiArea.culturali, pericolo: datiArea.culturaliPericolo, col: '#EBBF44' },
+          { nome: 'Siti Naturali', val: datiArea.naturali,  pericolo: datiArea.naturaliPericolo,  col: '#B8DD62' },
+          { nome: 'Siti Misti', val: datiArea.misti,     pericolo: datiArea.mistiPericolo,     col: '#65DAE3' }
+        ];
 
         // Spazi centrali tra le linee: indici 1, 2 e 3 (su 5 spazi totali tra 6 linee)
         let colorePericolo = '#ff1500';
         let indiciSpaziCentrali = [1, 2, 3];
         let larghezzaBarra = max(2, spazioTraLinee - 3); // larghezza tra una linea e l'altra (tolto lo spessore linea)
+
+        let localMouseX = mouseX - xCentroColonna;
+        let localMouseY = mouseY - yInizioColonne;
 
         for (let b = 0; b < serie.length; b++) {
           let hBarra = map(serie[b].val, 0, valoreMax, 0, altezzaMaxBarre);
@@ -372,32 +411,69 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           let hPericolo = 0;
           if (serie[b].pericolo > 0) {
             hPericolo = map(serie[b].pericolo, 0, valoreMax, 0, altezzaMaxBarre);
-            hPericolo = constrain(hPericolo, 3, hBarra);
+            hPericolo = constrain(hPericolo, 3, altezzaMaxBarre);
           }
 
           let indiceSpazio = indiciSpaziCentrali[b];
           let xBarra = xInizioFusto + indiceSpazio * spazioTraLinee + 1.5;
           let yBaseBarra = yFineFusto + 4 - hBarra;
 
-          // Stesso raggio leggero per la cima di tutte le barre (massimo 3px)
-          let raggioAlto = min(3, larghezzaBarra * 0.25);
-          // Raggio specifico per le barre 
-          let raggioAltoBarra = min(raggioAlto, hBarra / 2);
-          let raggioAltoRosso = min(raggioAlto, hPericolo / 2);
+          let yCimaTotale = (hPericolo > 0) ? (yBaseBarra - hPericolo) : yBaseBarra;
+        let yFondoTotale = yFineFusto + 4;
+
+        // >>> Controlla se il mouse è sopra questa specifica barra
+        let barraSottoMouse = (
+          localMouseX >= xBarra &&
+          localMouseX <= xBarra + larghezzaBarra &&
+          localMouseY >= yCimaTotale &&
+          localMouseY <= yFondoTotale
+        );
+
+        if (barraSottoMouse) {
+          tooltipInfo = {
+            area: datiArea.label,
+            categoria: serie[b].nome,
+            totale: serie[b].val,
+            pericolo: serie[b].pericolo,
+            colore: serie[b].col,
+            x: mouseX,
+            y: mouseY
+          };
+        }
+
+        // >>> Applica l'opacità della colonna ai colori delle barre
+        let cCat = color(serie[b].col);
+        cCat.setAlpha(alphaColonna);
+
+        let cPer = color(colorePericolo);
+        cPer.setAlpha(alphaColonna);
 
           if (hPericolo > 0) {
-            // Parte inferiore/principale della categoria (dove appoggia il rosso)
-            fill(serie[b].col);
-            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioAlto, raggioAlto, 0, 0);
+            // Parte inferiore/principale della categoria (spigoli retti in alto dove appoggia il rosso)
+            fill(cCat);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, 0, 0, 0, 0);
 
             // Segmento rosso in pericolo sopra la barra (arrotondato solo in alto)
-            fill(colorePericolo);
-            rect(xBarra, yBaseBarra, larghezzaBarra, hPericolo, raggioAltoRosso, raggioAltoRosso, 0, 0);
+            let yRosso = yBaseBarra - hPericolo;
+            let raggioRosso = min(larghezzaBarra / 3, hPericolo / 2);
+
+            fill(cPer);
+            rect(xBarra, yRosso, larghezzaBarra, hPericolo, raggioRosso, raggioRosso, 0, 0);
           } else {
             // Nessun sito in pericolo: barra arrotondata solo in alto
-            fill(serie[b].col);
-            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioAltoBarra, raggioAltoBarra, 0, 0);
+            let raggioBase = min(larghezzaBarra / 2, hBarra / 2);
+            fill(cCat);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioBase, raggioBase, 0, 0);
           }
+
+          if (barraSottoMouse) {
+          noFill();
+          stroke('#FDF0D6');
+          strokeWeight(1.5);
+          let raggioBordo = min(larghezzaBarra / 2, (yFondoTotale - yCimaTotale) / 2);
+          rect(xBarra, yCimaTotale, larghezzaBarra, yFondoTotale - yCimaTotale, raggioBordo, raggioBordo, 0, 0);
+          noStroke();
+        }
         }
       pop();
 
@@ -405,7 +481,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
     // 3.3 PIEDE COLONNA
       push ();
         noStroke();
-        fill(coloreTempioChiaro);
+        fill(colTempioAlpha);
 
         let staccoPiede = 3;
         let y0 = yFineFusto; 
@@ -438,11 +514,12 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
 
   push();
       textFont(fontFutura);
-      fill('#FDF0D6');
+      fill(colTestoAlpha);
       textAlign(CENTER, CENTER);
       textSize(max(9, larghezzaColonna * 0.075));
       text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
   pop();
+pop();
 }
 
 
@@ -455,4 +532,57 @@ function disegnaBase (xInizioTempio, yInizioBase,larghezzaTempio, spessoreBase) 
     // FASCIA ORIZZONTALE
       rect(xInizioTempio, yInizioBase, larghezzaTempio, spessoreBase);
   pop();
+}
+
+function disegnaTooltip(info) {
+  push();
+    textFont(fontFutura);
+
+    let boxW = 195;
+    let boxH = 82;
+    let offset = 14;
+
+    // Posiziona il riquadro a destra del mouse (o a sinistra se si esce dallo schermo)
+    let boxX = info.x + offset;
+    let boxY = info.y - boxH / 2;
+
+    if (boxX + boxW > width - 15) {
+      boxX = info.x - boxW - offset;
+    }
+    boxY = constrain(boxY, 15, height - boxH - 15);
+
+    // Sfondo riquadro
+    fill(coloreTempioScuro);
+    stroke('#FDF0D6');
+    strokeWeight(1);
+    rect(boxX, boxY, boxW, boxH, 8);
+
+    // Pallino colore categoria + Titolo
+    noStroke();
+    fill(info.colore);
+    circle(boxX + 16, boxY + 20, 10);
+
+    fill('#FDF0D6');
+    textAlign(LEFT, CENTER);
+    textSize(12);
+    text(info.categoria, boxX + 28, boxY + 20);
+
+    // Numero totale siti della barra
+    textSize(11);
+    fill('#CBD5E1');
+    text('Siti totali: ' + info.totale, boxX + 14, boxY + 44);
+
+    // Numero siti in pericolo
+    fill(info.pericolo > 0 ? '#ff4d3d' : '#CBD5E1');
+    text('In pericolo: ' + info.pericolo, boxX + 14, boxY + 63);
+  pop();
+}
+
+
+// click per andare alla meso
+function mousePressed() {
+  if (areaHover !== -1) {
+    let codiceScelto = datiMacro[areaHover].code; // Es: 'EUR', 'NA', 'APA', 'LAC', 'AFR', 'ARB'
+    window.location.href = 'meso.html?area=' + encodeURIComponent(codiceScelto);
+  }
 }
