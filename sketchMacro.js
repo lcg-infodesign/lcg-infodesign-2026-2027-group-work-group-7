@@ -354,12 +354,11 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
         // prende la distanza tra la base delle linee (yFineFusto + 3) e il loro inizio alto (yInizioFusto + spazioStacco),
         let altezzaMaxBarre = max(10, (yFineFusto + 3) - (yInizioFusto + spazioStacco));
         
-
         let serie = [
-          { val: datiArea.culturali, pericolo: datiArea.culturaliPericolo, col: '#EBBF44' },
-          { val: datiArea.naturali,  pericolo: datiArea.naturaliPericolo,  col: '#B8DD62' },
-          { val: datiArea.misti,     pericolo: datiArea.mistiPericolo,     col: '#65DAE3' }
-        ];
+        { val: datiArea.culturali, pericolo: datiArea.culturaliPericolo, col: '#EBBF44' },
+        { val: datiArea.naturali,  pericolo: datiArea.naturaliPericolo,  col: '#B8DD62' },
+        { val: datiArea.misti,     pericolo: datiArea.mistiPericolo,     col: '#65DAE3' }
+      ];
 
         // Spazi centrali tra le linee: indici 1, 2 e 3 (su 5 spazi totali tra 6 linee)
         let colorePericolo = '#ff1500';
@@ -373,29 +372,31 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           let hPericolo = 0;
           if (serie[b].pericolo > 0) {
             hPericolo = map(serie[b].pericolo, 0, valoreMax, 0, altezzaMaxBarre);
-            hPericolo = constrain(hPericolo, 3, altezzaMaxBarre);
+            hPericolo = constrain(hPericolo, 3, hBarra);
           }
 
           let indiceSpazio = indiciSpaziCentrali[b];
           let xBarra = xInizioFusto + indiceSpazio * spazioTraLinee + 1.5;
           let yBaseBarra = yFineFusto + 4 - hBarra;
 
+          // Stesso raggio leggero per la cima di tutte le barre (massimo 3px)
+          let raggioAlto = min(3, larghezzaBarra * 0.25);
+          // Raggio specifico per le barre 
+          let raggioAltoBarra = min(raggioAlto, hBarra / 2);
+          let raggioAltoRosso = min(raggioAlto, hPericolo / 2);
+
           if (hPericolo > 0) {
-            // Parte inferiore/principale della categoria (spigoli retti in alto dove appoggia il rosso)
+            // Parte inferiore/principale della categoria (dove appoggia il rosso)
             fill(serie[b].col);
-            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, 0, 0, 0, 0);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioAlto, raggioAlto, 0, 0);
 
             // Segmento rosso in pericolo sopra la barra (arrotondato solo in alto)
-            let yRosso = yBaseBarra - hPericolo;
-            let raggioRosso = min(larghezzaBarra / 3, hPericolo / 2);
-
             fill(colorePericolo);
-            rect(xBarra, yRosso, larghezzaBarra, hPericolo, raggioRosso, raggioRosso, 0, 0);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hPericolo, raggioAltoRosso, raggioAltoRosso, 0, 0);
           } else {
             // Nessun sito in pericolo: barra arrotondata solo in alto
-            let raggioBase = min(larghezzaBarra / 2, hBarra / 2);
             fill(serie[b].col);
-            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioBase, raggioBase, 0, 0);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioAltoBarra, raggioAltoBarra, 0, 0);
           }
         }
       pop();
@@ -442,7 +443,6 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
       textSize(max(9, larghezzaColonna * 0.075));
       text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
   pop();
-pop();
 }
 
 
