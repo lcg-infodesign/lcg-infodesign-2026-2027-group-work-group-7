@@ -1,10 +1,8 @@
-// Radar circolare + Colonna Focus + Pannello Destro (Sites in Danger) – p5.js (livello MESO)
+// Radar circolare (5 anelli in gradazione + grandezza proporzionale) + Colonna Focus + Graduatoria Destra – p5.js (livello MESO)
 
 const BG = '#1a1f4a';
-const RED = '#c4301c';
 const CARD_RED = '#e54837';
 const CARD_BLUE = '#2a346e';
-const DARK = '#7a1a14';
 const COL_TEMPIO = '#28326b';
 const COL_TESTO = '#FDF0D6';
 
@@ -13,108 +11,210 @@ const COL_CULTURALE = '#EBBF44';
 const COL_NATURALE = '#B8DD62';
 const COL_MISTO = '#65DAE3';
 
-// Dati colonna focus (Africa)
-const FOCUS_AREA = {
-  code: 'AFR',
-  label: 'AFRICA',
-  culturali: 61,
-  naturali: 44,
-  misti: 5
-};
+// 5 CERCHI CONCENTRICI (dal livello 1 interno al livello 5 esterno)
+const RINGS = [0.28, 0.46, 0.64, 0.82, 1.0];
 
-// Lista siti in pericolo (collegati ai punti del radar)
-const SITES_IN_DANGER = [
-  { name: 'Boma-Badingilo Migratory\nLandscape', country: 'South Sudan', cat: 'Naturale', col: COL_CULTURALE, threat: 'conflitti' },
-  { name: 'Tomb of Askia', country: 'Mali', cat: 'Culturale', col: COL_MISTO, threat: 'conflitti' },
-  { name: 'Lake Turkana National Parks', country: 'Kenya', cat: 'Naturale', col: COL_NATURALE, threat: 'sviluppo' },
-  { name: 'Old Towns of Djenné', country: 'Mali', cat: 'Culturale', col: COL_CULTURALE, threat: 'conflitti' },
-  { name: 'Mount Nimba Strict Nature Reserve', country: 'Guinea / Côte d\'Ivoire', cat: 'Naturale', col: COL_NATURALE, threat: 'illegali' },
-  { name: 'Okapi Wildlife Reserve', country: 'DR Congo', cat: 'Naturale', col: COL_NATURALE, threat: 'illegali' },
-  { name: 'Niokolo-Koba National Park', country: 'Senegal', cat: 'Naturale', col: COL_NATURALE, threat: 'illegali' },
-  { name: 'Selous Game Reserve', country: 'Tanzania', cat: 'Naturale', col: COL_NATURALE, threat: 'illegali' },
-  { name: 'Tombs of Buganda Kings at Kasubi', country: 'Uganda', cat: 'Culturale', col: COL_CULTURALE, threat: 'gestione' }
+// OPACITÀ E SPESSORE DEGLI ANELLI: dal più tenue (interno) al più acceso (esterno)
+const RING_STYLES = [
+  { alpha: 55,  weight: 1.2 }, // Cerchio 1 (più interno - tenue)
+  { alpha: 95,  weight: 1.4 }, // Cerchio 2
+  { alpha: 145, weight: 1.6 }, // Cerchio 3
+  { alpha: 200, weight: 1.9 }, // Cerchio 4
+  { alpha: 255, weight: 2.3 }  // Cerchio 5 (più esterno - molto acceso)
 ];
 
-// Dati grafico inferiore
-const COUNTRY_BARS = [
-  { country: 'DR Congo', count: 5 },
-  { country: 'Libya', count: 5 },
-  { country: 'Mali', count: 3 },
-  { country: 'Kenya', count: 1 },
-  { country: 'South Sudan', count: 1 },
-  { country: 'Uganda', count: 1 },
-  { country: 'Guinea / Senegal / Tanzania', count: 3 }
+// GRADAZIONE DEI PALLINI: dal più tenue/chiaro (interno) al più acceso/intenso (esterno)
+const DANGER_COLORS = [
+  '#f48c7f', // Livello 1 (più interno - tenue)
+  '#ef6b5b', // Livello 2
+  '#e64937', // Livello 3
+  '#d12817', // Livello 4
+  '#9e1108'  // Livello 5 (cerchio più grande - intenso e acceso)
 ];
 
-const RINGS = [0.2, 0.34, 0.47, 0.62, 0.8, 1];
+// SCALA DIMENSIONE DEI PALLINI: leggermente più grandi man mano che ci si sposta verso l'esterno
+const RING_DOT_SCALES = [0.76, 0.86, 0.96, 1.08, 1.22];
 
+// 8 assi del radar mappati sulle macrocategorie del dataset
 const LABELS = [
-  { t: 'conflitti armati e\ninstabilità', dx: 0, dy: -1.14 },
-  { t: 'pressione sociale,\nturismo e inquinamento', dx: 1.07, dy: -0.78 },
-  { t: 'sviluppo urbano e\ninfrastrutture', dx: 1.38, dy: 0 },
-  { t: 'cambiamento climatico\ne fenomeni naturali', dx: 1.0, dy: 0.84 },
-  { t: 'gestione e tutela', dx: 0, dy: 1.18 },
-  { t: 'uso del suolo e\npressione biologica', dx: -0.97, dy: 0.84 },
-  { t: 'carenze gestionali e\nistituzionali', dx: -1.32, dy: 0 },
-  { t: 'attività illegali', dx: -0.97, dy: -0.76 },
+  { t: 'conflitti armati e\ninstabilità', dx: 0, dy: -1.14, angle: -90, key: 'Armed Conflict & Instability' },
+  { t: 'pressione sociale,\nturismo e inquinamento', dx: 1.07, dy: -0.78, angle: -45, key: 'Social, Tourism & Pollution Pressure' },
+  { t: 'sviluppo urbano e\ninfrastrutture', dx: 1.38, dy: 0, angle: 0, key: 'Urban Development & Infrastructure' },
+  { t: 'cambiamento climatico\ne fenomeni naturali', dx: 1.0, dy: 0.84, angle: 45, key: 'Climate Change & Natural Phenomena' },
+  { t: 'gestione e tutela', dx: 0, dy: 1.18, angle: 90, key: 'Management & Institutional Deficiencies' },
+  { t: 'uso del suolo e\npressione biologica', dx: -0.97, dy: 0.84, angle: 135, key: 'Land Use & Biological Pressure' },
+  { t: 'attività estrattive\ned energia', dx: -1.32, dy: 0, angle: 180, key: 'Extractive Activities & Energy' },
+  { t: 'attività illegali', dx: -0.97, dy: -0.76, angle: -135, key: 'Illegal Activities' },
 ];
 
-const DOTS = [
-  { a: -106, r: 1.00, c: DARK, title: 'Conflitti armati #1', info: 'Boma-Badingilo (South Sudan)' },
-  { a: -98,  r: 1.01, c: DARK, title: 'Conflitti armati #2', info: 'Tomb of Askia (Mali)' },
-  { a: -90,  r: 1.02, c: DARK, title: 'Conflitti armati #3', info: 'Old Towns of Djenné (Mali)' },
-  { a: -82,  r: 1.01, c: DARK, title: 'Conflitti armati #4', info: 'Instabilità nell\'area del Sahel' },
-  { a: -74,  r: 1.00, c: DARK, title: 'Conflitti armati #5', info: 'Parchi nazionali in RD Congo' },
-
-  { a: -97, r: 0.78, c: RED, title: 'Attività illegali #1', info: 'Mount Nimba Strict Nature Reserve' },
-  { a: -83, r: 0.78, c: RED, title: 'Attività illegali #2', info: 'Okapi Wildlife Reserve (Bracconaggio)' },
-  { a: -90, r: 0.61, c: RED, title: 'Attività illegali #3', info: 'Selous Game Reserve (Bracconaggio)' },
-
-  { a: -45,   r: 1.00, c: DARK, title: 'Turismo e pressione', info: 'Impatto antropico sui siti' },
-  { a: -35.5, r: 0.99, c: DARK, title: 'Inquinamento', info: 'Degrado ambientale' },
-  { a: -45,   r: 0.81, c: DARK, title: 'Pressione sociale', info: 'Espansione insediamenti' },
-  { a: -45,   r: 0.63, c: RED,  title: 'Impatto turistico', info: 'Infrastrutture non regolamentate' },
-
-  { a: 0,   r: 0.62, c: RED,  title: 'Sviluppo urbano', info: 'Lake Turkana National Parks (Dighe)' },
-  { a: 180, r: 0.62, c: RED,  title: 'Carenze gestionali', info: 'Tombs of Buganda Kings (Uganda)' },
-  { a: 135, r: 0.96, c: DARK, title: 'Uso del suolo', info: 'Niokolo-Koba National Park (Senegal)' },
-];
+let tableDataset;
+let focusArea = { code: 'AFR', label: 'AFRICA', culturali: 0, naturali: 0, misti: 0 };
+let dangerSites = [];
+let countryBars = [];
 
 let cx, cy, R;
-let hoveredItem = null;
-let selectedDot = null;
+let activeSite = null;
+let selectedSite = null;
 
-// Variabili per scorrimento e barra scrollbar
+// Variabili scrollbar
 let scrollSites = 0;
 let isDraggingScrollbar = false;
 let scrollbarDragOffset = 0;
-let sbMetrics = null; // Salva coordinate della barra per il drag
+let sbMetrics = null;
 
 function navHeight() {
   const nav = document.querySelector('nav, header');
   return nav ? nav.offsetHeight : 0;
 }
 
-function setup() {
+async function setup() {
   const cnv = createCanvas(windowWidth, windowHeight - navHeight());
   cnv.style('display', 'block');
   textFont('Helvetica, Arial, sans-serif');
+
+  tableDataset = await loadTable('assets/dataset.csv', ',', 'header');
+  elaboraDatiCSV('AFR');
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight - navHeight());
 }
 
+// ==========================================
+// ESTRAZIONE E ORDINAMENTO DATI DAL CSV
+// ==========================================
+function elaboraDatiCSV(regionCode) {
+  if (!tableDataset) return;
+
+  focusArea = { code: regionCode, label: 'AFRICA', culturali: 0, naturali: 0, misti: 0 };
+  dangerSites = [];
+  let conteggioPaesi = {};
+
+  for (let r = 0; r < tableDataset.getRowCount(); r++) {
+    let reg = tableDataset.getString(r, 'Region_Code').trim();
+    if (reg !== regionCode) continue;
+
+    let cat = tableDataset.getString(r, 'Category').trim();
+    if (cat === 'Cultural') focusArea.culturali++;
+    else if (cat === 'Natural') focusArea.naturali++;
+    else if (cat === 'Mixed') focusArea.misti++;
+
+    let isDanger = tableDataset.getString(r, 'Danger').trim().toUpperCase() === 'TRUE';
+    if (isDanger) {
+      let name = tableDataset.getString(r, 'Name').trim();
+      let country = tableDataset.getString(r, 'States_Parties').trim();
+      let primaryMacro = tableDataset.getString(r, 'Danger_Primary_Macrocategory').trim();
+      let urgency = tableDataset.getString(r, 'Danger_Urgency_Label').trim();
+      let rawScore = tableDataset.getString(r, 'Danger_Severity_Score').replace(',', '.');
+      let score = parseFloat(rawScore) || 3.0;
+
+      let catCol = COL_CULTURALE;
+      if (cat === 'Natural') catCol = COL_NATURALE;
+      else if (cat === 'Mixed') catCol = COL_MISTO;
+
+      let ringLevel = calcolaLivelloAnello(score, urgency);
+
+      dangerSites.push({
+        id: r,
+        rank: 0,
+        name,
+        country,
+        cat,
+        catCol,
+        primaryMacro,
+        urgency,
+        score,
+        ringLevel,
+        dotCol: DANGER_COLORS[ringLevel],
+        a: -90,
+        r: RINGS[ringLevel]
+      });
+
+      let stati = country.split(',');
+      for (let s of stati) {
+        let st = s.trim();
+        if (st === 'Democratic Republic of the Congo') st = 'DR Congo';
+        if (st === 'United Republic of Tanzania') st = 'Tanzania';
+        if (st === 'Central African Republic') st = 'Central African Rep.';
+        conteggioPaesi[st] = (conteggioPaesi[st] || 0) + 1;
+      }
+    }
+  }
+
+  // Ordina per graduatoria (dal punteggio di pericolo più alto al più basso)
+  dangerSites.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  for (let i = 0; i < dangerSites.length; i++) {
+    dangerSites[i].rank = i + 1;
+  }
+
+  // Posizionamento ad arco per ciascuna macrocategoria e livello
+  posizionaPuntiOrdinatiSulRadar();
+
+  // Ordina gli Stati dal maggior numero di siti in pericolo
+  countryBars = Object.entries(conteggioPaesi)
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+function calcolaLivelloAnello(score, urgency) {
+  if (score >= 4.0 || urgency === 'Critical') return 4;     // Cerchio 5 (più esterno, più acceso)
+  if (score >= 3.5 || urgency === 'High') return 3;         // Cerchio 4
+  if (score >= 3.1 || urgency === 'Medium-High') return 2;  // Cerchio 3
+  if (score >= 2.7 || urgency === 'Moderate') return 1;     // Cerchio 2
+  return 0;                                                 // Cerchio 1 (più interno, più tenue)
+}
+
+function posizionaPuntiOrdinatiSulRadar() {
+  let gruppi = {};
+  for (let s of dangerSites) {
+    let macroKey = s.primaryMacro || 'Armed Conflict & Instability';
+    let groupKey = `${macroKey}__${s.ringLevel}`;
+    if (!gruppi[groupKey]) gruppi[groupKey] = [];
+    gruppi[groupKey].push(s);
+  }
+
+  for (let groupKey in gruppi) {
+    let [macroName, levelStr] = groupKey.split('__');
+    let level = parseInt(levelStr, 10);
+    let labelObj = LABELS.find(l => l.key.toLowerCase() === macroName.toLowerCase());
+    let baseAngle = labelObj ? labelObj.angle : -90;
+
+    let lista = gruppi[groupKey];
+    lista.sort((a, b) => a.name.localeCompare(b.name));
+
+    let n = lista.length;
+    let maxSpread = map(level, 0, 4, 24, 34);
+    let stepAngle = map(level, 0, 4, 11.0, 8.2);
+    let spread = min(maxSpread, (n - 1) * stepAngle);
+
+    for (let i = 0; i < n; i++) {
+      let offset = n === 1 ? 0 : map(i, 0, n - 1, -spread / 2, spread / 2);
+      lista[i].a = baseAngle + offset;
+      lista[i].r = RINGS[level];
+    }
+  }
+}
+
 function draw() {
   background(BG);
-  hoveredItem = null;
+
+  if (!tableDataset) {
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    text('Caricamento dataset UNESCO...', width / 2, height / 2);
+    return;
+  }
+
+  let hoveredFromRadar = null;
+  let hoveredFromList = null;
 
   // 1. COLONNA FOCUS (Sinistra)
   let colW = constrain(width * 0.11, 115, 165);
   let colH = height * 0.76;
   let colX = width * 0.11;
   let colY = (height - colH) / 2;
-  disegnaColonnaFocus(colX, colY, colW, colH, FOCUS_AREA);
+  disegnaColonnaFocus(colX, colY, colW, colH, focusArea);
 
   // 2. RADAR MESO (Centro)
   cx = width * 0.45;
@@ -124,234 +224,274 @@ function draw() {
   drawSpokes();
   drawRings();
   drawLabels();
-  drawDots();
+  hoveredFromRadar = checkDotsHover();
 
   // 3. PANNELLO DESTRO
-  let panelW = constrain(width * 0.23, 250, 340);
+  let panelW = constrain(width * 0.24, 260, 350);
   let panelX = width - panelW - 28;
   let panelTop = height * 0.08;
   let panelTotalH = height * 0.84;
 
-  disegnaPannelloDestro(panelX, panelTop, panelW, panelTotalH);
+  if (hoveredFromRadar && hoveredFromRadar !== activeSite) {
+    scorriFinoASito(hoveredFromRadar, panelTotalH * 0.50 - 86);
+  }
 
-  // Cursore e Tooltip
+  activeSite = hoveredFromRadar || hoveredFromList || selectedSite;
+
+  hoveredFromList = disegnaPannelloDestro(panelX, panelTop, panelW, panelTotalH);
+  if (hoveredFromList) {
+    activeSite = hoveredFromList;
+  }
+
+  drawDots();
+
   if (isDraggingScrollbar) {
     cursor('grabbing');
   } else {
-    cursor(hoveredItem ? HAND : ARROW);
-  }
-
-  if (hoveredItem) {
-    drawTooltip(hoveredItem);
+    cursor(hoveredFromRadar || hoveredFromList ? HAND : ARROW);
   }
 }
 
 // ==========================================
-// PANNELLO DESTRO (SITES IN DANGER + GRAFICO)
+// CONTROLLO HOVER E DISEGNO PALLINI RADAR
 // ==========================================
-function disegnaPannelloDestro(x, y, w, totalH) {
-  let gap = 18;
-  let redCardH = totalH * 0.50;
-  let chartBoxH = totalH - redCardH - gap;
+function checkDotsHover() {
+  if (isDraggingScrollbar) return null;
+  const baseD = R * 0.090;
+  for (const p of dangerSites) {
+    const a = radians(p.a);
+    const px = cx + cos(a) * R * p.r;
+    const py = cy + sin(a) * R * p.r;
+    const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
 
-  // ------------------------------------------
-  // A. CARD ROSSA SUPERIORE ("Sites in Danger")
-  // ------------------------------------------
-  push();
-  noStroke();
-  fill(CARD_RED);
-  rect(x, y, w, redCardH, 14);
-
-  let listaVisibile = selectedDot
-    ? SITES_IN_DANGER.filter(s => s.name.includes(selectedDot.info.split(' (')))
-    : SITES_IN_DANGER;
-  if (listaVisibile.length === 0) listaVisibile = SITES_IN_DANGER;
-
-  fill(BG);
-  textAlign(LEFT, TOP);
-  textStyle(BOLD);
-  textSize(34);
-  text(listaVisibile.length, x + 20, y + 16);
-
-  textSize(18);
-  text('Sites in Danger', x + 56, y + 25);
-
-  textStyle(NORMAL);
-  textSize(10);
-  fill(255, 220);
-  text(selectedDot ? 'Filtro attivo (clicca fuori per reset)' : 'Trascina la barra o usa la rotellina', x + 20, y + 56);
-
-  // Dimensioni area lista e barra di scorrimento
-  let listY = y + 74;
-  let listH = redCardH - 86;
-  let cardItemH = 54;
-  let cardGap = 10;
-  let sbW = 7;
-  let sbX = x + w - 16;
-  let cardsW = w - 38; // Lascia spazio a destra per la scrollbar
-
-  let contentH = listaVisibile.length * (cardItemH + cardGap) - cardGap;
-  let maxScroll = max(0, contentH - listH);
-  scrollSites = constrain(scrollSites, 0, maxScroll);
-
-  // Disegno delle card ritagliate
-  drawingContext.save();
-  drawingContext.beginPath();
-  drawingContext.rect(x + 14, listY, cardsW + 4, listH);
-  drawingContext.clip();
-
-  for (let i = 0; i < listaVisibile.length; i++) {
-    let site = listaVisibile[i];
-    let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
-
-    fill(CARD_BLUE);
-    rect(x + 16, itemY, cardsW, cardItemH, 8);
-
-    fill(255);
-    textStyle(BOLD);
-    textSize(11.5);
-    textLeading(13);
-    text(site.name, x + 26, itemY + 8, cardsW - 18);
-
-    let isTwoLines = site.name.includes('\n');
-    let subY = isTwoLines ? itemY + 38 : itemY + 28;
-
-    fill(site.col);
-    circle(x + 31, subY + 4, 8);
-
-    fill(210);
-    textStyle(NORMAL);
-    textSize(10.5);
-    text(site.country, x + 41, subY - 1);
-
-    if (!isDraggingScrollbar &&
-        mouseX >= x + 16 && mouseX <= x + 16 + cardsW &&
-        mouseY >= max(listY, itemY) && mouseY <= min(listY + listH, itemY + cardItemH)) {
-      hoveredItem = {
-        title: site.name.replace('\n', ' '),
-        info: `${site.country} • Patrimonio ${site.cat}`,
-        x: x + 16 + cardsW / 2,
-        y: itemY
-      };
+    if (dist(mouseX, mouseY, px, py) <= dotD / 2) {
+      return p;
     }
   }
-  drawingContext.restore();
+  return null;
+}
 
-  // --- BARRA DI SCORRIMENTO VERTICALE ---
-  if (maxScroll > 0) {
-    // Binario (track)
-    fill(0, 55);
-    rect(sbX, listY, sbW, listH, sbW / 2);
+function drawDots() {
+  const baseD = R * 0.090;
+  for (const p of dangerSites) {
+    const a = radians(p.a);
+    const px = cx + cos(a) * R * p.r;
+    const py = cy + sin(a) * R * p.r;
+    const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
 
-    // Cursore (thumb) proporzionale al contenuto
-    let thumbH = max(28, listH * (listH / contentH));
-    let scrollRatio = scrollSites / maxScroll;
-    let thumbY = listY + scrollRatio * (listH - thumbH);
+    const isHighlighted = activeSite === p;
 
-    sbMetrics = { x: sbX, y: listY, w: sbW, h: listH, thumbY, thumbH, maxScroll };
+    if (isHighlighted) {
+      noFill();
+      stroke(255, 130);
+      strokeWeight(5);
+      circle(px, py, dotD * 1.55);
 
-    let isHoverThumb = mouseX >= sbX - 4 && mouseX <= sbX + sbW + 4 &&
-                       mouseY >= thumbY && mouseY <= thumbY + thumbH;
-
-    if (isHoverThumb) hoveredItem = { title: '', info: '', silent: true };
-
-    fill(isHoverThumb || isDraggingScrollbar ? 255 : color(255, 190));
-    rect(sbX, thumbY, sbW, thumbH, sbW / 2);
-  } else {
-    sbMetrics = null;
+      stroke(255);
+      strokeWeight(2.5);
+      fill(p.dotCol);
+      circle(px, py, dotD * 1.25);
+    } else {
+      stroke(BG);
+      strokeWeight(1.4);
+      fill(p.dotCol);
+      circle(px, py, dotD);
+    }
   }
-  pop();
+}
 
-  // ------------------------------------------
-  // B. RIQUADRO INFERIORE (GRAFICO PAESI + PUNTO INFO)
-  // ------------------------------------------
-  let cyBox = y + redCardH + gap;
-  push();
-  fill(255, 10);
-  stroke(255, 80);
-  strokeWeight(1.2);
-  rect(x, cyBox, w, chartBoxH, 14);
-
-  // Calcolo totale siti nel grafico
-  let totaleSitiGrafico = COUNTRY_BARS.reduce((acc, item) => acc + item.count, 0);
-
-  // Piccolo cerchio INFO in alto a sinistra
-  let infoX = x + 22;
-  let infoY = cyBox + 22;
-  let infoR = 9;
-  let isHoverInfo = dist(mouseX, mouseY, infoX, infoY) <= infoR + 3;
-
-  fill(isHoverInfo ? 255 : color(255, 25));
-  stroke(255, 200);
-  strokeWeight(1.2);
-  circle(infoX, infoY, infoR * 2);
-
-  noStroke();
-  fill(isHoverInfo ? BG : 255);
+function scorriFinoASito(site, listH) {
+  let idx = dangerSites.indexOf(site);
+  if (idx === -1) return;
+let cardItemH = 58;
+let cardGap = 10;
+let targetY = idx * (cardItemH + cardGap);
+if (targetY < scrollSites || targetY + cardItemH > scrollSites + listH) {
+scrollSites = targetY - listH / 2 + cardItemH / 2;
+}
+}
+// ==========================================
+// PANNELLO DESTRO (GRADUATORIA SITES IN DANGER + GRAFICO)
+// ==========================================
+function disegnaPannelloDestro(x, y, w, totalH) {
+let gap = 18;
+let redCardH = totalH * 0.50;
+let chartBoxH = totalH - redCardH - gap;
+let hoveredCardSite = null;
+// A. CARD ROSSA SUPERIORE ("Graduatoria Sites in Danger")
+push();
+noStroke();
+fill(CARD_RED);
+rect(x, y, w, redCardH, 14);
+fill(BG);
+textAlign(LEFT, TOP);
+textStyle(BOLD);
+textSize(34);
+text(dangerSites.length, x + 20, y + 16);
+textSize(17);
+text('Sites in Danger', x + 64, y + 20);
+textStyle(NORMAL);
+textSize(10);
+fill(255, 230);
+text('Graduatoria per indice di gravità (Score)', x + 64, y + 41);
+let listY = y + 68;
+let listH = redCardH - 80;
+let cardItemH = 58;
+let cardGap = 10;
+let sbW = 7;
+let sbX = x + w - 16;
+let cardsW = w - 38;
+let contentH = max(0, dangerSites.length * (cardItemH + cardGap) - cardGap);
+let maxScroll = max(0, contentH - listH);
+scrollSites = constrain(scrollSites, 0, maxScroll);
+drawingContext.save();
+drawingContext.beginPath();
+drawingContext.rect(x + 14, listY, cardsW + 4, listH);
+drawingContext.clip();
+for (let i = 0; i < dangerSites.length; i++) {
+let site = dangerSites[i];
+let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
+let isHoverCard = !isDraggingScrollbar &&
+mouseX >= x + 16 && mouseX <= x + 16 + cardsW &&
+mouseY >= max(listY, itemY) && mouseY <= min(listY + listH, itemY + cardItemH);
+if (isHoverCard) {
+hoveredCardSite = site;
+}
+let isCardActive = (activeSite === site) || isHoverCard;
+if (isCardActive) {
+fill('#3d4b99');
+stroke(255);
+strokeWeight(2);
+} else {
+fill(CARD_BLUE);
+noStroke();
+}
+rect(x + 16, itemY, cardsW, cardItemH, 8);
+// Badge posizione in graduatoria (#1, #2, #3...)
+noStroke();
+let badgeX = x + 33;
+let badgeY = itemY + cardItemH / 2;
+if (site.rank === 1) fill('#EBBF44');       // Oro
+else if (site.rank === 2) fill('#D0D7DE');  // Argento
+else if (site.rank === 3) fill('#CD7F32');  // Bronzo
+else fill(255, 30);
+circle(badgeX, badgeY, 22);
+fill(site.rank <= 3 ? BG : 255);
+textAlign(CENTER, CENTER);
+textStyle(BOLD);
+textSize(10);
+text(`#${site.rank}`, badgeX, badgeY + 0.5);
+// Titolo sito a destra del badge
+textAlign(LEFT, TOP);
+fill(255);
+textStyle(BOLD);
+textSize(10.8);
+textLeading(12.5);
+text(site.name, x + 50, itemY + 7, cardsW - 42, 26);
+// Pallino categoria + Paese + Score
+fill(site.catCol);
+circle(x + 54, itemY + 43, 7.5);
+fill(isCardActive ? 255 : 210);
+textStyle(NORMAL);
+textSize(9.8);
+text(`${site.country}  •  Score ${site.score.toFixed(2)}`, x + 63, itemY + 37, cardsW - 55);
+}
+drawingContext.restore();
+// Barra di scorrimento verticale
+if (maxScroll > 0) {
+fill(0, 55);
+rect(sbX, listY, sbW, listH, sbW / 2);
+let thumbH = max(28, listH * (listH / contentH));
+let scrollRatio = scrollSites / maxScroll;
+let thumbY = listY + scrollRatio * (listH - thumbH);
+sbMetrics = { x: sbX, y: listY, w: sbW, h: listH, thumbY, thumbH, maxScroll };
+let isHoverThumb = mouseX >= sbX - 4 && mouseX <= sbX + sbW + 4 &&
+mouseY >= thumbY && mouseY <= thumbY + thumbH;
+fill(isHoverThumb || isDraggingScrollbar ? 255 : color(255, 190));
+rect(sbX, thumbY, sbW, thumbH, sbW / 2);
+} else {
+sbMetrics = null;
+}
+pop();
+// B. RIQUADRO INFERIORE (GRAFICO PAESI PIÙ COLPITI)
+let cyBox = y + redCardH + gap;
+push();
+fill(255, 10);
+stroke(255, 80);
+strokeWeight(1.2);
+rect(x, cyBox, w, chartBoxH, 14);
+let infoX = x + 22;
+let infoY = cyBox + 22;
+let infoR = 9;
+let isHoverInfo = dist(mouseX, mouseY, infoX, infoY) <= infoR + 4;
+fill(isHoverInfo ? 255 : color(255, 25));
+stroke(255, 200);
+strokeWeight(1.2);
+circle(infoX, infoY, infoR * 2);
+noStroke();
+fill(isHoverInfo ? BG : 255);
 textAlign(CENTER, CENTER);
 textStyle(BOLD);
 textSize(11);
 text('i', infoX, infoY + 0.5);
-if (isHoverInfo) {
-hoveredItem = {
-title: `Totale: ${totaleSitiGrafico} siti in pericolo`,
-info: `Distribuiti in ${COUNTRY_BARS.length} aree/stati africani`,
-x: infoX,
-y: infoY
-};
-}
-// Titolo grafico accanto al cerchio info
 textAlign(LEFT, CENTER);
 textStyle(BOLD);
 textSize(11);
 fill(230);
-text('Siti in pericolo per Stato', x + 38, infoY);
-// Barre orizzontali bianche 
+text('Paesi con più siti in pericolo', x + 38, infoY);
 let barsTop = cyBox + 46;
-let barsAvailH = chartBoxH - 58;
-let rowH = barsAvailH / COUNTRY_BARS.length;
-let maxVal = 5;
-let barRightX = x + w - 28; // Spazio a destra per il numero
-let maxBarW = w - 145;
-for (let i = 0; i < COUNTRY_BARS.length; i++) {
-let b = COUNTRY_BARS[i];
+let barsAvailH = chartBoxH - 56;
+let nBars = max(1, countryBars.length);
+let rowH = barsAvailH / nBars;
+let maxVal = countryBars.length > 0 ? Math.max(...countryBars.map(c => c.count)) : 5;
+let barRightX = x + w - 28;
+let maxBarW = w - 150;
+for (let i = 0; i < countryBars.length; i++) {
+let b = countryBars[i];
 let rowY = barsTop + i * rowH + rowH / 2;
-let barW = map(b.count, 0, maxVal, 16, maxBarW);
-let barH = min(13, rowH * 0.52);
-// Nome paese a sinistra
+let barW = map(b.count, 0, maxVal, 14, maxBarW);
+let barH = min(12, rowH * 0.55);
+let isCountryHighlighted = activeSite && activeSite.country.includes(b.country.replace('DR Congo', 'Democratic Republic of the Congo'));
 noStroke();
-fill(210);
+fill(isCountryHighlighted ? COL_CULTURALE : 210);
 textAlign(LEFT, CENTER);
-textStyle(NORMAL);
-textSize(10.5);
+textStyle(isCountryHighlighted ? BOLD : NORMAL);
+textSize(10);
 text(b.country, x + 16, rowY);
-// Barra bianca orizzontale allineata a destra
-fill(238);
+fill(isCountryHighlighted ? COL_CULTURALE : 238);
 rect(barRightX - barW, rowY - barH / 2, barW, barH, 2);
-// Valore numerico pulito a destra della barra
 fill(255);
 textAlign(LEFT, CENTER);
 textStyle(BOLD);
-textSize(10.5);
+textSize(10);
 text(b.count, barRightX + 7, rowY);
-// Hover sulla riga del paese
-if (mouseX >= x + 12 && mouseX <= x + w - 12 &&
-mouseY >= rowY - rowH / 2 && mouseY <= rowY + rowH / 2) {
-hoveredItem = {
-title: b.country,
-info: `${b.count} ${b.count === 1 ? 'sito UNESCO' : 'siti UNESCO'} in pericolo`,
-x: barRightX - barW / 2,
-y: rowY - barH / 2
-};
 }
+if (isHoverInfo) {
+let boxW = w - 24;
+let boxH = 44;
+let bx = x + 12;
+let by = infoY + 14;
+fill(15, 18, 45, 245);
+stroke(255, 200);
+strokeWeight(1);
+rect(bx, by, boxW, boxH, 6);
+noStroke();
+fill(255);
+textAlign(LEFT, TOP);
+textStyle(BOLD);
+textSize(10.5);
+text(`Totale Africa: ${dangerSites.length} siti in pericolo`, bx + 10, by + 8);
+textStyle(NORMAL);
+fill(210);
+text(`Distribuiti in ${countryBars.length} Stati membri UNESCO`, bx + 10, by + 23);
 }
 pop();
+return hoveredCardSite;
 }
 // ==========================================
-// GESTIONE EVENTI MOUSE (DRAG SCROLLBAR + CLICK)
+// EVENTI MOUSE
 // ==========================================
 function mousePressed() {
-// 1. Controllo click sulla scrollbar
 if (sbMetrics &&
 mouseX >= sbMetrics.x - 6 && mouseX <= sbMetrics.x + sbMetrics.w + 6 &&
 mouseY >= sbMetrics.y && mouseY <= sbMetrics.y + sbMetrics.h) {
@@ -359,18 +499,15 @@ isDraggingScrollbar = true;
 if (mouseY >= sbMetrics.thumbY && mouseY <= sbMetrics.thumbY + sbMetrics.thumbH) {
 scrollbarDragOffset = mouseY - sbMetrics.thumbY;
 } else {
-// Click diretto sul binario: sposta il cursore lì
 scrollbarDragOffset = sbMetrics.thumbH / 2;
 aggiornaScrollDaMouse();
 }
 return;
 }
-// 2. Controllo click sui pallini del radar
-if (hoveredItem && hoveredItem.isDot) {
-selectedDot = DOTS.find(d => d.title === hoveredItem.title);
-scrollSites = 0;
+if (activeSite) {
+selectedSite = (selectedSite === activeSite) ? null : activeSite;
 } else {
-selectedDot = null;
+selectedSite = null;
 }
 }
 function mouseDragged() {
@@ -390,7 +527,7 @@ let ratio = (newThumbY - sbMetrics.y) / trackTravel;
 scrollSites = ratio * sbMetrics.maxScroll;
 }
 function mouseWheel(event) {
-let panelW = constrain(width * 0.23, 250, 340);
+let panelW = constrain(width * 0.24, 260, 350);
 let panelX = width - panelW - 28;
 if (mouseX >= panelX && mouseX <= panelX + panelW) {
 scrollSites += event.delta * 0.5;
@@ -461,9 +598,9 @@ let valoreMax = 150;
 let yBaseBarre = yFineFusto - 4;
 let altezzaMaxBarre = (yFineFusto - 4) - (yInizioFusto + 8);
 let serie = [
-{ name: 'Siti Culturali', val: datiArea.culturali, col: COL_CULTURALE },
-{ name: 'Siti Naturali',  val: datiArea.naturali,  col: COL_NATURALE },
-{ name: 'Siti Misti',     val: datiArea.misti,     col: COL_MISTO }
+{ val: datiArea.culturali, col: COL_CULTURALE },
+{ val: datiArea.naturali,  col: COL_NATURALE },
+{ val: datiArea.misti,     col: COL_MISTO }
 ];
 let larghezzaBarra = larghezzaColonna * 0.11;
 let distanzaBarre = larghezzaColonna * 0.175;
@@ -472,26 +609,10 @@ for (let b = 0; b < serie.length; b++) {
 let hBarra = constrain(map(serie[b].val, 0, valoreMax, 0, altezzaMaxBarre), 8, altezzaMaxBarre);
 let bx = startX + b * distanzaBarre;
 let by = yBaseBarre - hBarra;
-let absX = xCentro + bx;
-let absY = yTop + by;
-if (!isDraggingScrollbar &&
-mouseX >= absX && mouseX <= absX + larghezzaBarra && mouseY >= absY && mouseY <= absY + hBarra) {
-hoveredItem = {
-title: `${datiArea.label} – ${serie[b].name}`,
-info: `Totale siti registrati: ${serie[b].val}`,
-x: absX + larghezzaBarra / 2,
-y: absY
-};
-stroke(255);
-strokeWeight(2);
-} else {
-noStroke();
-}
 fill(serie[b].col);
 rect(bx, by, larghezzaBarra, hBarra, larghezzaBarra / 2);
 }
 // Piede colonna
-noStroke();
 fill(COL_TEMPIO);
 let staccoPiede = 3;
 let y0 = yFineFusto;
@@ -519,20 +640,23 @@ text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
 pop();
 }
 // ==========================================
-// RADAR MESO
+// STRUTTURA RADAR (5 ANELLI IN GRADAZIONE TENUE -> ACCESO)
 // ==========================================
 function drawRings() {
 noFill();
-stroke(255, 200);
-strokeWeight(1.8);
-drawingContext.setLineDash([14, 10]);
-for (const f of RINGS) circle(cx, cy, 2 * R * f);
+drawingContext.setLineDash([12, 8]);
+for (let i = 0; i < RINGS.length; i++) {
+let st = RING_STYLES[i];
+stroke(255, st.alpha);
+strokeWeight(st.weight);
+circle(cx, cy, 2 * R * RINGS[i]);
+}
 drawingContext.setLineDash([]);
 }
 function drawSpokes() {
-stroke(255, 90);
+stroke(255, 75);
 strokeWeight(1.2);
-drawingContext.setLineDash([10, 10]);
+drawingContext.setLineDash([8, 8]);
 for (let i = 0; i < 8; i++) {
 const a = radians(i * 45);
 line(cx, cy, cx + cos(a) * R * 1.02, cy + sin(a) * R * 1.02);
@@ -546,49 +670,4 @@ textAlign(CENTER, CENTER);
 textSize(max(10, R * 0.056));
 textLeading(max(12, R * 0.066));
 for (const l of LABELS) text(l.t, cx + l.dx * R, cy + l.dy * R);
-}
-function drawDots() {
-const baseD = R * 0.105;
-for (const p of DOTS) {
-const a = radians(p.a);
-const px = cx + cos(a) * R * p.r;
-const py = cy + sin(a) * R * p.r;
-const isHover = !isDraggingScrollbar && dist(mouseX, mouseY, px, py) <= baseD / 2;
-const isSelected = selectedDot === p;
-if (isHover) {
-hoveredItem = { ...p, x: px, y: py, isDot: true };
-}
-if (isHover || isSelected) {
-stroke(255);
-strokeWeight(isSelected ? 3 : 2);
-fill(p.c);
-circle(px, py, baseD * 1.25);
-} else {
-noStroke();
-fill(p.c);
-circle(px, py, baseD);
-}
-}
-}
-function drawTooltip(item) {
-if (item.silent) return;
-const pad = 10;
-textSize(12);
-const w = max(textWidth(item.title), textWidth(item.info)) + pad * 2;
-const h = 44;
-let tx = constrain(item.x - w / 2, 10, width - w - 10);
-let ty = item.y - 22 - h;
-if (ty < 10) ty = item.y + 22;
-fill(15, 18, 45, 240);
-stroke(255, 180);
-strokeWeight(1);
-rect(tx, ty, w, h, 6);
-noStroke();
-textAlign(LEFT, TOP);
-fill(255);
-textStyle(BOLD);
-text(item.title, tx + pad, ty + 7);
-textStyle(NORMAL);
-fill(210);
-text(item.info, tx + pad, ty + 23);
 }
