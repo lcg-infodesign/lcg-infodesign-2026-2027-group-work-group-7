@@ -1,8 +1,6 @@
-// Radar circolare (5 anelli in gradazione + grandezza proporzionale) + Colonna Focus + Graduatoria Destra – p5.js (livello MESO)
+// Radar circolare (8 categorie inglese + 5 anelli gradazione) + Colonna Focus + Graduatoria Destra – p5.js (livello MESO)
 
 const BG = '#1a1f4a';
-const CARD_RED = '#e54837';
-const CARD_BLUE = '#2a346e';
 const COL_TEMPIO = '#28326b';
 const COL_TESTO = '#FDF0D6';
 
@@ -32,19 +30,19 @@ const DANGER_COLORS = [
   '#9e1108'  // Livello 5 (cerchio più grande - intenso e acceso)
 ];
 
-// SCALA DIMENSIONE DEI PALLINI: leggermente più grandi man mano che ci si sposta verso l'esterno
-const RING_DOT_SCALES = [0.76, 0.86, 0.96, 1.08, 1.22];
+// SCALA DIMENSIONE DEI PALLINI ENFATIZZATA
+const RING_DOT_SCALES = [0.58, 0.76, 0.96, 1.20, 1.48];
 
-// 8 assi del radar mappati sulle macrocategorie del dataset
+// 8 assi del radar con i nomi esatti in inglese dal dataset CSV
 const LABELS = [
-  { t: 'conflitti armati e\ninstabilità', dx: 0, dy: -1.14, angle: -90, key: 'Armed Conflict & Instability' },
-  { t: 'pressione sociale,\nturismo e inquinamento', dx: 1.07, dy: -0.78, angle: -45, key: 'Social, Tourism & Pollution Pressure' },
-  { t: 'sviluppo urbano e\ninfrastrutture', dx: 1.38, dy: 0, angle: 0, key: 'Urban Development & Infrastructure' },
-  { t: 'cambiamento climatico\ne fenomeni naturali', dx: 1.0, dy: 0.84, angle: 45, key: 'Climate Change & Natural Phenomena' },
-  { t: 'gestione e tutela', dx: 0, dy: 1.18, angle: 90, key: 'Management & Institutional Deficiencies' },
-  { t: 'uso del suolo e\npressione biologica', dx: -0.97, dy: 0.84, angle: 135, key: 'Land Use & Biological Pressure' },
-  { t: 'attività estrattive\ned energia', dx: -1.32, dy: 0, angle: 180, key: 'Extractive Activities & Energy' },
-  { t: 'attività illegali', dx: -0.97, dy: -0.76, angle: -135, key: 'Illegal Activities' },
+  { t: 'Armed Conflict &\nInstability', dx: 0, dy: -1.15, angle: -90, key: 'Armed Conflict & Instability' },
+  { t: 'Social, Tourism &\nPollution Pressure', dx: 1.12, dy: -0.78, angle: -45, key: 'Social, Tourism & Pollution Pressure' },
+  { t: 'Urban Development &\nInfrastructure', dx: 1.42, dy: 0, angle: 0, key: 'Urban Development & Infrastructure' },
+  { t: 'Climate Change &\nNatural Phenomena', dx: 1.08, dy: 0.84, angle: 45, key: 'Climate Change & Natural Phenomena' },
+  { t: 'Management & Institutional\nDeficiencies', dx: 0, dy: 1.18, angle: 90, key: 'Management & Institutional Deficiencies' },
+  { t: 'Land Use &\nBiological Pressure', dx: -1.05, dy: 0.84, angle: 135, key: 'Land Use & Biological Pressure' },
+  { t: 'Extractive Activities\n& Energy', dx: -1.38, dy: 0, angle: 180, key: 'Extractive Activities & Energy' },
+  { t: 'Illegal Activities', dx: -1.02, dy: -0.76, angle: -135, key: 'Illegal Activities' },
 ];
 
 let tableDataset;
@@ -55,6 +53,7 @@ let countryBars = [];
 let cx, cy, R;
 let activeSite = null;
 let selectedSite = null;
+let lastRadarHovered = null;
 
 // Variabili scrollbar
 let scrollSites = 0;
@@ -132,10 +131,7 @@ function elaboraDatiCSV(regionCode) {
 
       let stati = country.split(',');
       for (let s of stati) {
-        let st = s.trim();
-        if (st === 'Democratic Republic of the Congo') st = 'DR Congo';
-        if (st === 'United Republic of Tanzania') st = 'Tanzania';
-        if (st === 'Central African Republic') st = 'Central African Rep.';
+        let st = normalizzaNomePaese(s.trim());
         conteggioPaesi[st] = (conteggioPaesi[st] || 0) + 1;
       }
     }
@@ -154,6 +150,13 @@ function elaboraDatiCSV(regionCode) {
   countryBars = Object.entries(conteggioPaesi)
     .map(([country, count]) => ({ country, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+function normalizzaNomePaese(st) {
+  if (st === 'Democratic Republic of the Congo') return 'DR Congo';
+  if (st === 'United Republic of Tanzania') return 'Tanzania';
+  if (st === 'Central African Republic') return 'Central African Rep.';
+  return st;
 }
 
 function calcolaLivelloAnello(score, urgency) {
@@ -206,9 +209,6 @@ function draw() {
     return;
   }
 
-  let hoveredFromRadar = null;
-  let hoveredFromList = null;
-
   // 1. COLONNA FOCUS (Sinistra)
   let colW = constrain(width * 0.11, 115, 165);
   let colH = height * 0.76;
@@ -217,32 +217,37 @@ function draw() {
   disegnaColonnaFocus(colX, colY, colW, colH, focusArea);
 
   // 2. RADAR MESO (Centro)
-  cx = width * 0.45;
+  cx = width * 0.44;
   cy = height / 2;
   R = min(width * 0.18, height * 0.28);
 
   drawSpokes();
   drawRings();
   drawLabels();
-  hoveredFromRadar = checkDotsHover();
+
+  // Controllo hover sul radar
+  let hoveredFromRadar = checkDotsHover();
 
   // 3. PANNELLO DESTRO
-  let panelW = constrain(width * 0.24, 260, 350);
+  let panelW = constrain(width * 0.25, 275, 365);
   let panelX = width - panelW - 28;
-  let panelTop = height * 0.08;
-  let panelTotalH = height * 0.84;
+  let panelTop = height * 0.06;
+  let panelTotalH = height * 0.88;
+  let listH = panelTotalH * 0.58 - 78;
 
-  if (hoveredFromRadar && hoveredFromRadar !== activeSite) {
-    scorriFinoASito(hoveredFromRadar, panelTotalH * 0.50 - 86);
+  // Scorre la lista solo nel momento in cui il mouse entra su un nuovo pallino del radar
+  if (hoveredFromRadar && hoveredFromRadar !== lastRadarHovered) {
+    scorriFinoASito(hoveredFromRadar, listH);
   }
+  lastRadarHovered = hoveredFromRadar;
 
+  // Controllo hover sulla lista (solo se non stiamo già puntando un pallino sul radar)
+  let hoveredFromList = hoveredFromRadar ? null : checkListHover(panelX, panelTop, panelW, panelTotalH);
+
+  // Stato attivo finale: priorità a hover radar -> hover lista -> eventuale selezione da click
   activeSite = hoveredFromRadar || hoveredFromList || selectedSite;
 
-  hoveredFromList = disegnaPannelloDestro(panelX, panelTop, panelW, panelTotalH);
-  if (hoveredFromList) {
-    activeSite = hoveredFromList;
-  }
-
+  disegnaPannelloDestro(panelX, panelTop, panelW, panelTotalH);
   drawDots();
 
   if (isDraggingScrollbar) {
@@ -253,11 +258,11 @@ function draw() {
 }
 
 // ==========================================
-// CONTROLLO HOVER E DISEGNO PALLINI RADAR
+// CONTROLLO HOVER SEPARATO (RADAR E LISTA)
 // ==========================================
 function checkDotsHover() {
   if (isDraggingScrollbar) return null;
-  const baseD = R * 0.090;
+  const baseD = R * 0.092;
   for (const p of dangerSites) {
     const a = radians(p.a);
     const px = cx + cos(a) * R * p.r;
@@ -271,39 +276,52 @@ function checkDotsHover() {
   return null;
 }
 
-function drawDots() {
-  const baseD = R * 0.090;
-  for (const p of dangerSites) {
-    const a = radians(p.a);
-    const px = cx + cos(a) * R * p.r;
-    const py = cy + sin(a) * R * p.r;
-    const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
+function checkListHover(x, y, w, totalH) {
+  if (isDraggingScrollbar) return null;
+  let redCardH = totalH * 0.58;
+  let listY = y + 66;
+  let listH = redCardH - 78;
+  let cardItemH = 64;
+  let cardGap = 10;
+  let cardsW = w - 38;
 
-    const isHighlighted = activeSite === p;
-
-    if (isHighlighted) {
-      noFill();
-      stroke(255, 130);
-      strokeWeight(5);
-      circle(px, py, dotD * 1.55);
-
-      stroke(255);
-      strokeWeight(2.5);
-      fill(p.dotCol);
-      circle(px, py, dotD * 1.25);
-    } else {
-      stroke(BG);
-      strokeWeight(1.4);
-      fill(p.dotCol);
-      circle(px, py, dotD);
-    }
+  if (mouseX < x + 16 || mouseX > x + 16 + cardsW || mouseY < listY || mouseY > listY + listH) {
+    return null;
   }
-}
 
+  for (let i = 0; i < dangerSites.length; i++) {
+let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
+if (mouseY >= itemY && mouseY <= itemY + cardItemH) {
+return dangerSites[i];
+}
+}
+return null;
+}
+function drawDots() {
+const baseD = R * 0.092;
+for (const p of dangerSites) {
+const a = radians(p.a);
+const px = cx + cos(a) * R * p.r;
+const py = cy + sin(a) * R * p.r;
+const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
+const isHighlighted = activeSite === p;
+if (isHighlighted) {
+stroke(255);
+strokeWeight(2.5);
+fill(p.dotCol);
+circle(px, py, dotD * 1.25);
+} else {
+stroke(BG);
+strokeWeight(1.4);
+fill(p.dotCol);
+circle(px, py, dotD);
+}
+}
+}
 function scorriFinoASito(site, listH) {
-  let idx = dangerSites.indexOf(site);
-  if (idx === -1) return;
-let cardItemH = 58;
+let idx = dangerSites.indexOf(site);
+if (idx === -1) return;
+let cardItemH = 64;
 let cardGap = 10;
 let targetY = idx * (cardItemH + cardGap);
 if (targetY < scrollSites || targetY + cardItemH > scrollSites + listH) {
@@ -314,29 +332,30 @@ scrollSites = targetY - listH / 2 + cardItemH / 2;
 // PANNELLO DESTRO (GRADUATORIA SITES IN DANGER + GRAFICO)
 // ==========================================
 function disegnaPannelloDestro(x, y, w, totalH) {
-let gap = 18;
-let redCardH = totalH * 0.50;
+let gap = 16;
+let redCardH = totalH * 0.58;
 let chartBoxH = totalH - redCardH - gap;
-let hoveredCardSite = null;
-// A. CARD ROSSA SUPERIORE ("Graduatoria Sites in Danger")
+// A. RIQUADRO SUPERIORE ("Graduatoria Sites in Danger")
 push();
-noStroke();
-fill(CARD_RED);
+fill(255, 10);
+stroke(255, 80);
+strokeWeight(1.2);
 rect(x, y, w, redCardH, 14);
-fill(BG);
+noStroke();
+fill(255);
 textAlign(LEFT, TOP);
 textStyle(BOLD);
 textSize(34);
-text(dangerSites.length, x + 20, y + 16);
+text(dangerSites.length, x + 20, y + 14);
 textSize(17);
-text('Sites in Danger', x + 64, y + 20);
+text('Sites in Danger', x + 66, y + 18);
 textStyle(NORMAL);
-textSize(10);
-fill(255, 230);
-text('Graduatoria per indice di gravità (Score)', x + 64, y + 41);
-let listY = y + 68;
-let listH = redCardH - 80;
-let cardItemH = 58;
+textSize(10.5);
+fill(210);
+text('Graduatoria per indice di gravità (Score)', x + 66, y + 39);
+let listY = y + 66;
+let listH = redCardH - 78;
+let cardItemH = 64;
 let cardGap = 10;
 let sbW = 7;
 let sbX = x + w - 16;
@@ -351,55 +370,53 @@ drawingContext.clip();
 for (let i = 0; i < dangerSites.length; i++) {
 let site = dangerSites[i];
 let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
-let isHoverCard = !isDraggingScrollbar &&
-mouseX >= x + 16 && mouseX <= x + 16 + cardsW &&
-mouseY >= max(listY, itemY) && mouseY <= min(listY + listH, itemY + cardItemH);
-if (isHoverCard) {
-hoveredCardSite = site;
-}
-let isCardActive = (activeSite === site) || isHoverCard;
+let isCardActive = (activeSite === site);
+// Sfondo card con il colore del proprio pallino sul radar
+let cDot = color(site.dotCol);
 if (isCardActive) {
-fill('#3d4b99');
+fill(red(cDot), green(cDot), blue(cDot), 235);
 stroke(255);
 strokeWeight(2);
 } else {
-fill(CARD_BLUE);
-noStroke();
+fill(red(cDot), green(cDot), blue(cDot), 155);
+stroke(red(cDot), green(cDot), blue(cDot), 230);
+strokeWeight(1);
 }
-rect(x + 16, itemY, cardsW, cardItemH, 8);
+rect(x + 16, itemY, cardsW, cardItemH, 9);
 // Badge posizione in graduatoria (#1, #2, #3...)
-noStroke();
-let badgeX = x + 33;
+let badgeX = x + 36;
 let badgeY = itemY + cardItemH / 2;
-if (site.rank === 1) fill('#EBBF44');       // Oro
-else if (site.rank === 2) fill('#D0D7DE');  // Argento
-else if (site.rank === 3) fill('#CD7F32');  // Bronzo
-else fill(255, 30);
-circle(badgeX, badgeY, 22);
-fill(site.rank <= 3 ? BG : 255);
+fill(site.dotCol);
+stroke(255, 200);
+strokeWeight(1.4);
+circle(badgeX, badgeY, 28);
+noStroke();
+fill(255);
 textAlign(CENTER, CENTER);
 textStyle(BOLD);
-textSize(10);
+textSize(12);
 text(`#${site.rank}`, badgeX, badgeY + 0.5);
-// Titolo sito a destra del badge
-textAlign(LEFT, TOP);
+// Blocco testo centrale
+let textX = x + 58;
+let textMaxW = cardsW - 50;
+textAlign(LEFT, CENTER);
 fill(255);
 textStyle(BOLD);
-textSize(10.8);
-textLeading(12.5);
-text(site.name, x + 50, itemY + 7, cardsW - 42, 26);
-// Pallino categoria + Paese + Score
+textSize(11.8);
+textLeading(13.5);
+text(site.name, textX, itemY + 21, textMaxW);
+let subY = itemY + 46;
 fill(site.catCol);
-circle(x + 54, itemY + 43, 7.5);
-fill(isCardActive ? 255 : 210);
+circle(textX + 4, subY, 8);
+fill(245);
 textStyle(NORMAL);
-textSize(9.8);
-text(`${site.country}  •  Score ${site.score.toFixed(2)}`, x + 63, itemY + 37, cardsW - 55);
+textSize(10.5);
+text(`${site.country}  •  Score ${site.score.toFixed(2)}`, textX + 13, subY);
 }
 drawingContext.restore();
 // Barra di scorrimento verticale
 if (maxScroll > 0) {
-fill(0, 55);
+fill(255, 30);
 rect(sbX, listY, sbW, listH, sbW / 2);
 let thumbH = max(28, listH * (listH / contentH));
 let scrollRatio = scrollSites / maxScroll;
@@ -407,7 +424,7 @@ let thumbY = listY + scrollRatio * (listH - thumbH);
 sbMetrics = { x: sbX, y: listY, w: sbW, h: listH, thumbY, thumbH, maxScroll };
 let isHoverThumb = mouseX >= sbX - 4 && mouseX <= sbX + sbW + 4 &&
 mouseY >= thumbY && mouseY <= thumbY + thumbH;
-fill(isHoverThumb || isDraggingScrollbar ? 255 : color(255, 190));
+fill(isHoverThumb || isDraggingScrollbar ? 255 : color(255, 180));
 rect(sbX, thumbY, sbW, thumbH, sbW / 2);
 } else {
 sbMetrics = null;
@@ -421,7 +438,7 @@ stroke(255, 80);
 strokeWeight(1.2);
 rect(x, cyBox, w, chartBoxH, 14);
 let infoX = x + 22;
-let infoY = cyBox + 22;
+let infoY = cyBox + 21;
 let infoR = 9;
 let isHoverInfo = dist(mouseX, mouseY, infoX, infoY) <= infoR + 4;
 fill(isHoverInfo ? 255 : color(255, 25));
@@ -439,28 +456,32 @@ textStyle(BOLD);
 textSize(11);
 fill(230);
 text('Paesi con più siti in pericolo', x + 38, infoY);
-let barsTop = cyBox + 46;
-let barsAvailH = chartBoxH - 56;
+let barsTop = cyBox + 42;
+let barsAvailH = chartBoxH - 50;
 let nBars = max(1, countryBars.length);
 let rowH = barsAvailH / nBars;
 let maxVal = countryBars.length > 0 ? Math.max(...countryBars.map(c => c.count)) : 5;
 let barRightX = x + w - 28;
-let maxBarW = w - 150;
+let maxBarW = w - 155;
+let activeCountries = activeSite
+? activeSite.country.split(',').map(s => normalizzaNomePaese(s.trim()))
+: [];
 for (let i = 0; i < countryBars.length; i++) {
 let b = countryBars[i];
 let rowY = barsTop + i * rowH + rowH / 2;
 let barW = map(b.count, 0, maxVal, 14, maxBarW);
-let barH = min(12, rowH * 0.55);
-let isCountryHighlighted = activeSite && activeSite.country.includes(b.country.replace('DR Congo', 'Democratic Republic of the Congo'));
+let barH = min(11, rowH * 0.55);
+let isMatch = activeCountries.includes(b.country);
+let alphaRow = activeSite ? (isMatch ? 255 : 55) : 225;
 noStroke();
-fill(isCountryHighlighted ? COL_CULTURALE : 210);
+fill(255, alphaRow);
 textAlign(LEFT, CENTER);
-textStyle(isCountryHighlighted ? BOLD : NORMAL);
+textStyle(isMatch ? BOLD : NORMAL);
 textSize(10);
 text(b.country, x + 16, rowY);
-fill(isCountryHighlighted ? COL_CULTURALE : 238);
+fill(240, alphaRow);
 rect(barRightX - barW, rowY - barH / 2, barW, barH, 2);
-fill(255);
+fill(255, alphaRow);
 textAlign(LEFT, CENTER);
 textStyle(BOLD);
 textSize(10);
@@ -486,7 +507,6 @@ fill(210);
 text(`Distribuiti in ${countryBars.length} Stati membri UNESCO`, bx + 10, by + 23);
 }
 pop();
-return hoveredCardSite;
 }
 // ==========================================
 // EVENTI MOUSE
@@ -504,8 +524,15 @@ aggiornaScrollDaMouse();
 }
 return;
 }
-if (activeSite) {
-selectedSite = (selectedSite === activeSite) ? null : activeSite;
+let hoveredDot = checkDotsHover();
+let panelW = constrain(width * 0.25, 275, 365);
+let panelX = width - panelW - 28;
+let panelTop = height * 0.06;
+let panelTotalH = height * 0.88;
+let hoveredCard = checkListHover(panelX, panelTop, panelW, panelTotalH);
+let clickedSite = hoveredDot || hoveredCard;
+if (clickedSite) {
+selectedSite = (selectedSite === clickedSite) ? null : clickedSite;
 } else {
 selectedSite = null;
 }
@@ -527,7 +554,7 @@ let ratio = (newThumbY - sbMetrics.y) / trackTravel;
 scrollSites = ratio * sbMetrics.maxScroll;
 }
 function mouseWheel(event) {
-let panelW = constrain(width * 0.24, 260, 350);
+let panelW = constrain(width * 0.25, 275, 365);
 let panelX = width - panelW - 28;
 if (mouseX >= panelX && mouseX <= panelX + panelW) {
 scrollSites += event.delta * 0.5;
@@ -644,7 +671,7 @@ pop();
 // ==========================================
 function drawRings() {
 noFill();
-drawingContext.setLineDash([12, 8]);
+drawingContext.setLineDash([14, 10]);
 for (let i = 0; i < RINGS.length; i++) {
 let st = RING_STYLES[i];
 stroke(255, st.alpha);
@@ -656,7 +683,7 @@ drawingContext.setLineDash([]);
 function drawSpokes() {
 stroke(255, 75);
 strokeWeight(1.2);
-drawingContext.setLineDash([8, 8]);
+drawingContext.setLineDash([10, 10]);
 for (let i = 0; i < 8; i++) {
 const a = radians(i * 45);
 line(cx, cy, cx + cos(a) * R * 1.02, cy + sin(a) * R * 1.02);
@@ -667,7 +694,7 @@ function drawLabels() {
 noStroke();
 fill(255);
 textAlign(CENTER, CENTER);
-textSize(max(10, R * 0.056));
-textLeading(max(12, R * 0.066));
+textSize(max(10, R * 0.054));
+textLeading(max(12, R * 0.064));
 for (const l of LABELS) text(l.t, cx + l.dx * R, cy + l.dy * R);
 }
