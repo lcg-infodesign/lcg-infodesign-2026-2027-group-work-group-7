@@ -8,35 +8,31 @@ let colonnaCategoria = "Category";
 let colonnaLivello = "Danger_Severity_Score";
 let colonnaEtichetta = "Danger_Urgency_Label";
 
-// mappa
+// mappa di prova da sostituire con il link di Google Maps
 let linkMappa = "https://www.google.com/maps?q=0,20&z=3&hl=en&output=embed";
 
-// misure del progetto
+// misure della pagina e del paragrafo
 let larghDesign = 1250;
 let altDesign = 663;
 let larghTesto = 240;
 let altTesto = 176;
 let interlinea = 16;
 
-// layout mobile
+// layout mobile: larghezza di attivazione e altezza della pagina
 let sogliaMobile = 700;
 let altezzaMobile = 1660;
 
-// riferimento viewport mobile
-let larghMobile = 390;
-let altViewportMobile = 844;
+// colori [rosso, verde, blu]
+let coloreSfondoDestra = [31, 38, 66];     // pannello destro, sfondo mobile, numeri dei gruppi
+let coloreSfondoSinistra = [68, 75, 108];  // fascia in basso a sinistra e cornice della mappa
+let coloreFoto = [90, 98, 130];            // riquadro della foto
+let coloreTesto = [245, 238, 228];         // titoli, paese, paragrafo
+let coloreAccento = [233, 86, 74];         // livello, triangoli, cause, timeline
+let coloreSpento = [72, 80, 112];          // gruppi di cause assenti
+let coloreLinee = [110, 118, 150];         // linee e binario della barra
+let colorePollice = [240, 236, 230];       // cursore della barra
 
-// colori
-let coloreSfondoDestra = [31, 38, 66];
-let coloreSfondoSinistra = [68, 75, 108];
-let coloreFoto = [90, 98, 130];
-let coloreTesto = [245, 238, 228];
-let coloreAccento = [233, 86, 74];
-let coloreSpento = [72, 80, 112];
-let coloreLinee = [110, 118, 150];
-let colorePollice = [240, 236, 230];
-
-// gruppi di cause
+// gruppi di cause: nome mostrato e voci di Danger_Threats che lo accendono
 let categorieCause = [
   { nome: "Armed Conflicts\n& Instability", voci: ["War", "Civil unrest", "Deliberate destruction of heritage", "Military training"] },
   { nome: "Urban\nDevelopment &\nInfrastructure", voci: ["Housing", "Commercial development", "Ground transport infrastructure", "Water infrastructure", "Major visitor accommodation and associated infrastructure", "Localised utilities", "Effects arising from use of transportation infrastructure", "Major linear utilities", "Interpretative and visitation facilities"] },
@@ -60,6 +56,7 @@ let annoInizio;
 let annoPericolo;
 let annoFine;
 let titoloSize;
+let canvasPagina;
 let imgFoto;
 let pgTesto;
 let iframeMappa;
@@ -71,8 +68,9 @@ let etichettaLivello;
 
 // responsive
 let layoutMobile = false;
-let scalaX = 1;
-let scalaY = 1;
+let scalaUniforme = 1;
+let offsetX = 0;
+let offsetY = 0;
 
 
 // CARICAMENTO CSV (p5.js 1.x)
@@ -83,9 +81,17 @@ function preload() {
 
 // SETUP
 async function setup() {
-  // l'altezza vera del canvas e la classe "mobile" del body si impostano in windowResized
-  createCanvas(windowWidth, windowHeight);
-  windowResized();
+  document.body.style.margin = "0";
+  document.body.style.padding = "0";
+  document.body.style.overflowX = "hidden";
+  document.body.style.background = "rgb(18,18,18)";
+
+  layoutMobile = windowWidth < sogliaMobile;
+
+  canvasPagina = createCanvas(windowWidth, layoutMobile ? altezzaMobile : windowHeight);
+  canvasPagina.position(0, 0);
+  canvasPagina.style("display", "block");
+  canvasPagina.style("position", layoutMobile ? "relative" : "absolute");
 
   textFont("futura-pt, sans-serif");
 
@@ -94,22 +100,7 @@ async function setup() {
     dati = await loadTable(percorsoDati, ",", "header");
   }
 
-  // raccolta dei siti in pericolo: si parte da quello con l'ID dell'indirizzo, altrimenti dal primo
-  let righePericolo = [];
-  let indiceSito = 0;
-  let idScelto = getURLParams().id;
-
-  for (let i = 0; i < dati.getRowCount(); i++) {
-    if (dati.getString(i, "Danger").trim().toUpperCase() === "TRUE") {
-      if (dati.getString(i, "ID") === idScelto) {
-        indiceSito = righePericolo.length;
-      }
-
-      righePericolo.push(i);
-    }
-  }
-
-  let numRiga = righePericolo[indiceSito] || 0;
+  let numRiga = trovaRiga(getURLParams().id);
 
   // dati del sito
   nome = dati.getString(numRiga, "Name");
@@ -119,7 +110,7 @@ async function setup() {
   annoFine = year();
   titoloSize = nome.length > 45 ? 40 : 58;
 
-  // categoria
+  // categoria del sito
   let categoria = dati.getString(numRiga, colonnaCategoria);
 
   etichettaCategoria = "Cultural Site";
@@ -156,7 +147,7 @@ async function setup() {
     }
   }
 
-  // colori dei gruppi: rosso il principale, chiaro se presente, spento se assente
+  // colore di ogni gruppo (usato da desktop e mobile): rosso il principale, chiaro se presente, spento se assente
   for (let i = 0; i < categorieCause.length; i++) {
     let colore = coloreSpento;
 
@@ -169,7 +160,7 @@ async function setup() {
     coloriCause.push(colore);
   }
 
-  // livello di pericolo
+  // livello di pericolo (da 0 a 5, virgola decimale ammessa)
   livello = parseFloat(dati.getString(numRiga, colonnaLivello).replace(",", "."));
 
   if (isNaN(livello)) {
@@ -196,17 +187,19 @@ async function setup() {
     pgTesto.text(righe[i], 0, i * interlinea);
   }
 
-  // mappa (stile in style.css)
+  // mappa
   iframeMappa = createElement("iframe");
   iframeMappa.attribute("src", linkMappa);
   iframeMappa.attribute("title", "Mappa di " + nome);
+  iframeMappa.style("border", "0");
 
-  // fotografia (stile in style.css)
+  // fotografia
   let urlImmagine = dati.getString(numRiga, colonnaImmagine);
 
   if (urlImmagine !== "") {
     imgFoto = createImg(urlImmagine, "Foto di " + nome);
     imgFoto.attribute("referrerpolicy", "no-referrer");
+    imgFoto.style("object-fit", "cover");
 
     imgFoto.elt.onerror = function () {
       imgFoto.hide();
@@ -215,16 +208,30 @@ async function setup() {
 
   pronto = true;
   aggiornaImpaginazione();
+}
 
-  // frecce: link allo stesso indirizzo con l'ID del sito precedente e successivo (stile in style.css)
-  if (righePericolo.length > 1) {
-    let n = righePericolo.length;
-    let precedente = righePericolo[(indiceSito + n - 1) % n];
-    let successivo = righePericolo[(indiceSito + 1) % n];
 
-    createA("?id=" + dati.getString(precedente, "ID"), "‹").class("freccia sinistra");
-    createA("?id=" + dati.getString(successivo, "ID"), "›").class("freccia destra");
+// RICERCA DEL SITO (ID dall'indirizzo, altrimenti il primo sito africano in pericolo)
+function trovaRiga(idScelto) {
+  let predefinita = 0;
+  let trovataPredefinita = false;
+
+  for (let numRiga = 0; numRiga < dati.getRowCount(); numRiga++) {
+    if (idScelto !== undefined && dati.getString(numRiga, "ID") === idScelto) {
+      return numRiga;
+    }
+
+    if (
+      trovataPredefinita === false &&
+      dati.getString(numRiga, "Danger") === "TRUE" &&
+      dati.getString(numRiga, "Region") === "Africa"
+    ) {
+      predefinita = numRiga;
+      trovataPredefinita = true;
+    }
   }
+
+  return predefinita;
 }
 
 
@@ -250,26 +257,41 @@ function spezzaTesto(testo, larghezza) {
 }
 
 
-// SCALA DELLA PAGINA E POSIZIONE DI FOTO E MAPPA
-function aggiornaImpaginazione() {
-  scalaX = windowWidth / (layoutMobile ? larghMobile : larghDesign);
-  scalaY = windowHeight / (layoutMobile ? altViewportMobile : altDesign);
+// POSIZIONE DELLA FOTO
+function posizionaFoto() {
+  if (imgFoto === undefined) return;
 
-  if (!pronto) return;
-
-  // foto: in alto a sinistra
-  if (imgFoto !== undefined) {
-    imgFoto.position(0, 0);
-    imgFoto.size(layoutMobile ? windowWidth : 399 * scalaX, (layoutMobile ? 230 : 330) * scalaY);
-  }
-
-  // mappa
   if (layoutMobile) {
-    iframeMappa.position(12 * scalaX, 1270 * scalaY);
-    iframeMappa.size((larghMobile - 24) * scalaX, 300 * scalaY);
+    imgFoto.position(0, 0);
+    imgFoto.size(windowWidth, 230);
   } else {
-    iframeMappa.position(911 * scalaX, 247 * scalaY);
-    iframeMappa.size(268 * scalaX, 364 * scalaY);
+    imgFoto.position(offsetX, offsetY);
+    imgFoto.size(399 * scalaUniforme, 330 * scalaUniforme);
+  }
+}
+
+
+// POSIZIONE DELLA MAPPA
+function posizionaMappa() {
+  if (layoutMobile) {
+    iframeMappa.position(12, 1270);
+    iframeMappa.size(windowWidth - 24, 300);
+  } else {
+    iframeMappa.position(offsetX + 911 * scalaUniforme, offsetY + 247 * scalaUniforme);
+    iframeMappa.size(268 * scalaUniforme, 364 * scalaUniforme);
+  }
+}
+
+
+// SCALA, MARGINI E POSIZIONE DEGLI ELEMENTI (layoutMobile è già aggiornato da setup e windowResized)
+function aggiornaImpaginazione() {
+  scalaUniforme = min(windowWidth / larghDesign, windowHeight / altDesign);
+  offsetX = (windowWidth - larghDesign * scalaUniforme) / 2;
+  offsetY = (windowHeight - altDesign * scalaUniforme) / 2;
+
+  if (pronto) {
+    posizionaFoto();
+    posizionaMappa();
   }
 }
 
@@ -280,21 +302,23 @@ function draw() {
 
   if (!pronto) return;
 
-  push();
-  scale(scalaX, scalaY);
-
   if (layoutMobile) {
     disegnaLayoutMobile();
-  } else {
-    translate(0, -34);
-    disegnaSfondi();
-    disegnaDescrizione();
-    disegnaTimeline();
-    disegnaTitolo();
-    disegnaLivello();
-    disegnaCause();
+    return;
   }
 
+  push();
+  translate(offsetX, offsetY);
+  scale(scalaUniforme);
+  translate(0, -34);
+  disegnaSfondi();
+  disegnaFoto();
+  disegnaDescrizione();
+  disegnaTimeline();
+  disegnaTitolo();
+  disegnaLivello();
+  disegnaCause();
+  disegnaCorniceMappa();
   pop();
 }
 
@@ -302,22 +326,17 @@ function draw() {
 // SFONDI
 function disegnaSfondi() {
   noStroke();
-
-  // pannello destro
   fill(coloreSfondoDestra);
   rect(399, 34, 851, 663);
-
-  // fascia in basso a sinistra
   fill(coloreSfondoSinistra);
   rect(0, 364, 399, 333);
+}
 
-  // riquadro della foto (visibile finché la foto non si carica)
+
+// SFONDO DELLA FOTO
+function disegnaFoto() {
   fill(coloreFoto);
   rect(0, 34, 399, 330);
-
-  // cornice della mappa (l'inframe sta sopra il canvas)
-  fill(coloreSfondoSinistra);
-  rect(905, 275, 280, 376);
 }
 
 
@@ -327,11 +346,11 @@ function disegnaDescrizione() {
 
   image(pgTesto, 67, 420, larghTesto, h, 0, scorrimento, larghTesto, h);
 
-  // binario
+  // binario della barra
   fill(coloreLinee);
   rect(331, 420, 12, altTesto, 6);
 
-  // cursore
+  // cursore: va dall'alto al basso del binario in base a quanto si è scorso
   let altPollice = max(24, altTesto * altTesto / pgTesto.height);
   let yPollice = maxScorrimento > 0 ? lerp(420, 420 + altTesto - altPollice, scorrimento / maxScorrimento) : 420;
 
@@ -342,7 +361,7 @@ function disegnaDescrizione() {
 
 // TIMELINE
 function disegnaTimeline() {
-  let frazione = constrain((annoPericolo - annoInizio) / max(1, annoFine - annoInizio), 0, 1);
+  let frazione = (annoPericolo - annoInizio) / max(1, annoFine - annoInizio);
   let xMezzo = lerp(41, 363, frazione);
 
   noStroke();
@@ -391,7 +410,7 @@ function disegnaTitolo() {
   fill(coloreTesto);
   text(etichettaCategoria, 654, 71);
 
-  // nome sito
+  // nome del sito
   textAlign(LEFT, TOP);
   textStyle(BOLD);
   textSize(titoloSize);
@@ -399,7 +418,7 @@ function disegnaTitolo() {
   text(nome, 432, 100, 790, 140);
   textStyle(NORMAL);
 
-  // linea
+  // linea divisoria
   stroke(coloreLinee);
   line(431, 250, 1212, 250);
   noStroke();
@@ -421,7 +440,7 @@ function disegnaLivello() {
   text(etichettaLivello, xValore, 287);
   textStyle(NORMAL);
 
-  // cinque triangoli
+  // cinque triangoli: pieni fino al valore del dataset arrotondato
   for (let i = 0; i < 5; i++) {
     let x = 453 + i * 70;
 
@@ -453,20 +472,19 @@ function disegnaCause() {
   text("Main Causes of Danger", 432, 425);
 
   for (let i = 0; i < categorieCause.length; i++) {
+    // quattro gruppi per riga
     let x = 457 + (i % 4) * 104;
     let y = 485 + floor(i / 4) * 111;
 
-    // quadrato
+    // quadrato numerato
     fill(coloriCause[i]);
     rect(x - 27, y - 27, 54, 54, 10);
-
-    // numero
     fill(coloreSfondoDestra);
     textAlign(CENTER, CENTER);
     textSize(22);
     text(i + 1, x, y);
 
-    // nome
+    // nome del gruppo
     fill(coloriCause[i]);
     textAlign(CENTER, TOP);
     textSize(9);
@@ -476,10 +494,17 @@ function disegnaCause() {
 }
 
 
+// CORNICE DELLA MAPPA
+function disegnaCorniceMappa() {
+  noStroke();
+  fill(coloreSfondoSinistra);
+  rect(905, 275, 280, 376);
+}
+
+
 // LAYOUT MOBILE
 function disegnaLayoutMobile() {
-  // larghezza logica mobile
-  let w = larghMobile;
+  let w = width;
   let margine = 24;
 
   // sfondo
@@ -514,7 +539,7 @@ function disegnaLayoutMobile() {
   text(nome, margine, 320, w - margine * 2, 125);
   textStyle(NORMAL);
 
-  // linea
+  // linea divisoria
   stroke(coloreLinee);
   line(margine, 455, w - margine, 455);
   noStroke();
@@ -551,7 +576,7 @@ function disegnaLayoutMobile() {
 
   image(pgTesto, margine, 610, larghezzaDescrizione, h, 0, scorrimento, larghTesto, h);
 
-  // barra scorrimento
+  // barra di scorrimento
   fill(coloreLinee);
   rect(w - margine - 10, 610, 10, altTesto, 5);
 
@@ -573,7 +598,7 @@ function disegnaLayoutMobile() {
   text(etichettaLivello, margine + 116, 830);
   textStyle(NORMAL);
 
-  // triangoli
+  // cinque triangoli
   let spazio = (w - margine * 2) / 5;
 
   for (let i = 0; i < 5; i++) {
@@ -597,7 +622,7 @@ function disegnaLayoutMobile() {
   textSize(10);
   text(livello.toFixed(2) + " / 5", w - margine, 910);
 
-  // gruppi di cause
+  // otto gruppi di cause, in due colonne
   fill(coloreAccento);
   textAlign(LEFT, CENTER);
   textSize(19);
@@ -609,17 +634,15 @@ function disegnaLayoutMobile() {
     let x = margine + colonna * (i % 2 + 0.5);
     let y = 1015 + floor(i / 2) * 62;
 
-    // quadrato
+    // quadrato numerato
     fill(coloriCause[i]);
     rect(x - 20, y - 20, 40, 40, 8);
-
-    // numero
     fill(coloreSfondoDestra);
     textAlign(CENTER, CENTER);
     textSize(18);
     text(i + 1, x, y);
 
-    // nome
+    // nome del gruppo
     fill(coloriCause[i]);
     textAlign(LEFT, CENTER);
     textSize(9);
@@ -638,33 +661,44 @@ function disegnaLayoutMobile() {
 }
 
 
-// SCORRIMENTO DESCRIZIONE
+// COORDINATE DEL MOUSE NELLA PAGINA
+function xPagina() {
+  return layoutMobile ? mouseX : (mouseX - offsetX) / scalaUniforme;
+}
+
+
+function yPagina() {
+  return layoutMobile ? mouseY : (mouseY - offsetY) / scalaUniforme + 34;
+}
+
+
+// SCORRIMENTO DELLA DESCRIZIONE CON LA ROTELLA
 function mouseWheel(evento) {
   if (!pronto) return;
 
   // riquadro del paragrafo: da x0 a x1, a partire da y0 (cambia tra mobile e desktop)
   let x0 = layoutMobile ? 24 : 67;
-  let x1 = layoutMobile ? larghMobile - 24 : 343;
+  let x1 = layoutMobile ? width - 24 : 343;
   let y0 = layoutMobile ? 610 : 420;
 
-  // coordinate del mouse nella pagina (su desktop la pagina parte da y 34)
-  let x = mouseX / scalaX;
-  let y = mouseY / scalaY + (layoutMobile ? 0 : 34);
+  let x = xPagina();
+  let y = yPagina();
 
   if (x > x0 && x < x1 && y > y0 && y < y0 + altTesto) {
-    scorrimento = constrain(scorrimento + evento.delta * 0.5 / scalaY, 0, maxScorrimento);
+    scorrimento = constrain(scorrimento + evento.delta * 0.5, 0, maxScorrimento);
     return false;
   }
 }
 
 
-// RIDIMENSIONAMENTO FINESTRA
+// RIDIMENSIONAMENTO DELLA FINESTRA
 function windowResized() {
   layoutMobile = windowWidth < sogliaMobile;
 
-  // la classe "mobile" attiva le regole mobile di style.css
-  document.body.classList.toggle("mobile", layoutMobile);
-
-  resizeCanvas(windowWidth, layoutMobile ? altezzaMobile * (windowHeight / altViewportMobile) : windowHeight);
+  resizeCanvas(windowWidth, layoutMobile ? altezzaMobile : windowHeight);
+  canvasPagina.style("position", layoutMobile ? "relative" : "absolute");
   aggiornaImpaginazione();
+
+  document.body.style.overflowX = "hidden";
+  document.body.style.overflowY = layoutMobile ? "auto" : "hidden";
 }
