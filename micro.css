@@ -1,3 +1,5 @@
+
+/* colori degli elementi HTML (frecce e sfondo della pagina) */
 :root {
   --sfondo-pagina: rgb(18, 18, 18);
   --freccia-sfondo: rgba(31, 38, 66, 0.9);
@@ -5,6 +7,7 @@
   --freccia-bordo: rgb(110, 118, 150);
 }
 
+/* pagina: nessun margine, niente scorrimento laterale, sfondo scuro dietro il canvas */
 body {
   margin: 0;
   padding: 0;
@@ -13,11 +16,13 @@ body {
   background: var(--sfondo-pagina);
 }
 
+/* layout mobile: detailSketch.js aggiunge la classe "mobile" al body
+   quando la finestra è più stretta di sogliaMobile; la pagina si scorre in verticale */
 body.mobile {
   overflow-y: auto;
 }
 
-
+/* canvas: nell'angolo in alto a sinistra, senza spazio vuoto sotto */
 canvas {
   display: block;
   position: absolute;
@@ -25,16 +30,17 @@ canvas {
   left: 0;
 }
 
-
+/* inframe della mappa: senza bordo */
 iframe {
   border: 0;
 }
 
-
+/* foto del sito: riempie il riquadro e si ritaglia senza deformarsi */
 img {
   object-fit: cover;
 }
 
+/* frecce per cambiare sito: fisse nella finestra, a metà altezza */
 .freccia {
   position: fixed;
   top: 50vh;
