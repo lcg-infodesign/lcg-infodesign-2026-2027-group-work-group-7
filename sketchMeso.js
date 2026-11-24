@@ -79,9 +79,7 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight - navHeight());
 }
 
-// ==========================================
 // ESTRAZIONE E ORDINAMENTO DATI DAL CSV
-// ==========================================
 function elaboraDatiCSV(regionCode) {
   if (!tableDataset) return;
 
@@ -104,16 +102,16 @@ function elaboraDatiCSV(regionCode) {
       let country = tableDataset.getString(r, 'States_Parties').trim();
       let primaryMacro = tableDataset.getString(r, 'Danger_Primary_Macrocategory').trim();
       let urgency = tableDataset.getString(r, 'Danger_Urgency_Label').trim();
-      let rawScore = tableDataset.getString(r, 'Danger_Severity_Score').replace(',', '.');
-      let score = parseFloat(rawScore) || 3.0;
+      let rawScore = tableDataset.getString(r, 'Danger_Severity_Score').replace(',', '.'); // Sostituisce eventuali virgole con punti decimali
+      let score = parseFloat(rawScore) || 3.0; //nel caso manca il punteggio, assegna un valore medio di 3.0
 
-      let catCol = COL_CULTURALE;
+      let catCol = COL_CULTURALE; 
       if (cat === 'Natural') catCol = COL_NATURALE;
       else if (cat === 'Mixed') catCol = COL_MISTO;
 
-      let ringLevel = calcolaLivelloAnello(score, urgency);
+      let ringLevel = calcolaLivelloAnello(score, urgency); // Livello anello da 0 a 4 (interno -> esterno)
 
-      dangerSites.push({
+      dangerSites.push({ // Oggetto per ciascun sito in pericolo
         id: r,
         rank: 0,
         name,
@@ -129,8 +127,8 @@ function elaboraDatiCSV(regionCode) {
         r: RINGS[ringLevel]
       });
 
-      let stati = country.split(',');
-      for (let s of stati) {
+      let stati = country.split(','); // Alcuni siti hanno più Stati separati da virgola
+      for (let s of stati) { // Conta il numero di siti in pericolo per ciascun Paese
         let st = normalizzaNomePaese(s.trim());
         conteggioPaesi[st] = (conteggioPaesi[st] || 0) + 1;
       }
@@ -152,7 +150,7 @@ function elaboraDatiCSV(regionCode) {
     .sort((a, b) => b.count - a.count);
 }
 
-function normalizzaNomePaese(st) {
+function normalizzaNomePaese(st) { //abbreviazione dei nomi di alcuni Stati per evitare che siano troppo lunghi nella graduatoria
   if (st === 'Democratic Republic of the Congo') return 'DR Congo';
   if (st === 'United Republic of Tanzania') return 'Tanzania';
   if (st === 'Central African Republic') return 'Central African Rep.';
@@ -166,32 +164,32 @@ function calcolaLivelloAnello(score, urgency) {
   if (score >= 2.7 || urgency === 'Moderate') return 1;     // Cerchio 2
   return 0;                                                 // Cerchio 1 (più interno, più tenue)
 }
-
-function posizionaPuntiOrdinatiSulRadar() {
+//tutti i calcoli per posizionare i pallini sul radar in base alla macrocategoria e al livello di anello
+function posizionaPuntiOrdinatiSulRadar() {// Posizionamento ad arco dei pallini sul radar, raggruppati per macrocategoria e livello di anello
   let gruppi = {};
   for (let s of dangerSites) {
-    let macroKey = s.primaryMacro || 'Armed Conflict & Instability';
-    let groupKey = `${macroKey}__${s.ringLevel}`;
-    if (!gruppi[groupKey]) gruppi[groupKey] = [];
-    gruppi[groupKey].push(s);
+    let macroKey = s.primaryMacro || 'Armed Conflict & Instability'; // Se manca la macrocategoria, assegna un valore di default
+    let groupKey = `${macroKey}__${s.ringLevel}`;// Gruppo univoco per ciascuna macrocategoria e livello di anello
+    if (!gruppi[groupKey]) gruppi[groupKey] = [];// Inizializza l'array se non esiste ancora
+    gruppi[groupKey].push(s);// Aggiunge il sito al gruppo corrispondente
   }
 
-  for (let groupKey in gruppi) {
+  for (let groupKey in gruppi) {// Per ciascun gruppo, calcola l'angolo di base e la distribuzione ad arco dei pallini
     let [macroName, levelStr] = groupKey.split('__');
-    let level = parseInt(levelStr, 10);
-    let labelObj = LABELS.find(l => l.key.toLowerCase() === macroName.toLowerCase());
+    let level = parseInt(levelStr, 10);// Livello di anello da 0 a 4
+    let labelObj = LABELS.find(l => l.key.toLowerCase() === macroName.toLowerCase());// Trova l'oggetto label corrispondente alla macrocategoria
     let baseAngle = labelObj ? labelObj.angle : -90;
 
     let lista = gruppi[groupKey];
     lista.sort((a, b) => a.name.localeCompare(b.name));
 
-    let n = lista.length;
+    let n = lista.length;// Numero di pallini nel gruppo
     let maxSpread = map(level, 0, 4, 24, 34);
     let stepAngle = map(level, 0, 4, 11.0, 8.2);
-    let spread = min(maxSpread, (n - 1) * stepAngle);
+    let spread = min(maxSpread, (n - 1) * stepAngle);// Spread totale dell'arco per il gruppo, limitato a un massimo in base al livello di anello
 
-    for (let i = 0; i < n; i++) {
-      let offset = n === 1 ? 0 : map(i, 0, n - 1, -spread / 2, spread / 2);
+    for (let i = 0; i < n; i++) {//ciclo per calcolare l'angolo di ciascun pallino nel gruppo, distribuito ad arco attorno all'angolo di base della macrocategoria
+      let offset = n === 1 ? 0 : map(i, 0, n - 1, -spread / 2, spread / 2);// Offset angolare per ciascun pallino, distribuito simmetricamente attorno all'angolo di base
       lista[i].a = baseAngle + offset;
       lista[i].r = RINGS[level];
     }
@@ -257,26 +255,26 @@ function draw() {
   }
 }
 
-// ==========================================
+
 // CONTROLLO HOVER SEPARATO (RADAR E LISTA)
-// ==========================================
-function checkDotsHover() {
-  if (isDraggingScrollbar) return null;
-  const baseD = R * 0.092;
+
+function checkDotsHover() {// Controlla se il mouse è sopra un pallino del radar
+  if (isDraggingScrollbar) return null;// Non controlla l'hover se stiamo trascinando la scrollbar
+  const baseD = R * 0.092;// Diametro base del pallino (scala proporzionale al raggio del radar)
   for (const p of dangerSites) {
     const a = radians(p.a);
-    const px = cx + cos(a) * R * p.r;
-    const py = cy + sin(a) * R * p.r;
-    const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
+    const px = cx + cos(a) * R * p.r;// Coordinate X del pallino sul radar
+    const py = cy + sin(a) * R * p.r;// Coordinate Y del pallino sul radar
+    const dotD = baseD * RING_DOT_SCALES[p.ringLevel];// Diametro effettivo del pallino in base al livello di anello
 
-    if (dist(mouseX, mouseY, px, py) <= dotD / 2) {
+    if (dist(mouseX, mouseY, px, py) <= dotD / 2) {// Controlla se il mouse è dentro il cerchio del pallino
       return p;
     }
   }
   return null;
 }
 
-function checkListHover(x, y, w, totalH) {
+function checkListHover(x, y, w, totalH) {// Controlla se il mouse è sopra un elemento della lista graduatoria
   if (isDraggingScrollbar) return null;
   let redCardH = totalH * 0.58;
   let listY = y + 66;
@@ -285,27 +283,27 @@ function checkListHover(x, y, w, totalH) {
   let cardGap = 10;
   let cardsW = w - 38;
 
-  if (mouseX < x + 16 || mouseX > x + 16 + cardsW || mouseY < listY || mouseY > listY + listH) {
-    return null;
+  if (mouseX < x + 16 || mouseX > x + 16 + cardsW || mouseY < listY || mouseY > listY + listH) {// Controlla se il mouse è dentro l'area della lista
+    return null;// Se il mouse è fuori dall'area della lista, non c'è hover
   }
 
-  for (let i = 0; i < dangerSites.length; i++) {
-let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
-if (mouseY >= itemY && mouseY <= itemY + cardItemH) {
+  for (let i = 0; i < dangerSites.length; i++) {// Controlla ciascun elemento della lista per vedere se il mouse è sopra di esso
+let itemY = listY + i * (cardItemH + cardGap) - scrollSites;// Calcola la posizione Y dell'elemento della lista in base allo scroll
+if (mouseY >= itemY && mouseY <= itemY + cardItemH) {// Controlla se il mouse è dentro l'elemento della lista
 return dangerSites[i];
 }
 }
 return null;
 }
 function drawDots() {
-const baseD = R * 0.092;
+const baseD = R * 0.092;// Diametro base del pallino (scala proporzionale al raggio del radar)
 for (const p of dangerSites) {
 const a = radians(p.a);
-const px = cx + cos(a) * R * p.r;
-const py = cy + sin(a) * R * p.r;
-const dotD = baseD * RING_DOT_SCALES[p.ringLevel];
-const isHighlighted = activeSite === p;
-if (isHighlighted) {
+const px = cx + cos(a) * R * p.r;// Coordinate X del pallino sul radar
+const py = cy + sin(a) * R * p.r;// Coordinate Y del pallino sul radar
+const dotD = baseD * RING_DOT_SCALES[p.ringLevel];// Diametro effettivo del pallino in base al livello di anello
+const isHighlighted = activeSite === p;// Controlla se il pallino è attivo (hover o selezionato)
+if (isHighlighted) {// Disegna il pallino evidenziato con un bordo bianco più spesso e leggermente più grande
 stroke(255);
 strokeWeight(2.5);
 fill(p.dotCol);
@@ -318,19 +316,19 @@ circle(px, py, dotD);
 }
 }
 }
-function scorriFinoASito(site, listH) {
+function scorriFinoASito(site, listH) {// Scorre la lista graduatoria fino a portare in vista il sito selezionato
 let idx = dangerSites.indexOf(site);
-if (idx === -1) return;
+if (idx === -1) return;// Se il sito non è trovato, esce dalla funzione
 let cardItemH = 64;
 let cardGap = 10;
-let targetY = idx * (cardItemH + cardGap);
-if (targetY < scrollSites || targetY + cardItemH > scrollSites + listH) {
-scrollSites = targetY - listH / 2 + cardItemH / 2;
+let targetY = idx * (cardItemH + cardGap);// Calcola la posizione Y del sito nella lista graduatoria
+if (targetY < scrollSites || targetY + cardItemH > scrollSites + listH) {// Controlla se il sito è fuori dalla vista corrente della lista
+scrollSites = targetY - listH / 2 + cardItemH / 2;// Aggiorna lo scroll per centrare il sito nella vista della lista
 }
 }
-// ==========================================
+
 // PANNELLO DESTRO (GRADUATORIA SITES IN DANGER + GRAFICO)
-// ==========================================
+
 function disegnaPannelloDestro(x, y, w, totalH) {
 let gap = 16;
 let redCardH = totalH * 0.58;
@@ -353,21 +351,21 @@ textStyle(NORMAL);
 textSize(10.5);
 fill(210);
 text('Graduatoria per indice di gravità (Score)', x + 66, y + 39);
-let listY = y + 66;
-let listH = redCardH - 78;
+let listY = y + 66;// Posizione Y della lista graduatoria
+let listH = redCardH - 78;// Altezza disponibile per la lista graduatoria
 let cardItemH = 64;
 let cardGap = 10;
-let sbW = 7;
+let sbW = 7;// Larghezza barra di scorrimento
 let sbX = x + w - 16;
 let cardsW = w - 38;
-let contentH = max(0, dangerSites.length * (cardItemH + cardGap) - cardGap);
-let maxScroll = max(0, contentH - listH);
+let contentH = max(0, dangerSites.length * (cardItemH + cardGap) - cardGap);// Altezza totale del contenuto della lista graduatoria
+let maxScroll = max(0, contentH - listH);// Altezza massima dello scroll (quando il contenuto è più alto della lista)
 scrollSites = constrain(scrollSites, 0, maxScroll);
-drawingContext.save();
-drawingContext.beginPath();
-drawingContext.rect(x + 14, listY, cardsW + 4, listH);
-drawingContext.clip();
-for (let i = 0; i < dangerSites.length; i++) {
+drawingContext.save();// Salva lo stato del contesto di disegno per applicare il clipping alla lista graduatoria
+drawingContext.beginPath();// Inizia un nuovo percorso per il clipping, il clippung è necessario per evitare che i contenuti della lista escano dai bordi del riquadro
+drawingContext.rect(x + 14, listY, cardsW + 4, listH);// Definisce il rettangolo di clipping per la lista graduatoria
+drawingContext.clip();// Applica il clipping al contesto di disegno
+for (let i = 0; i < dangerSites.length; i++) {// Ciclo per disegnare ciascun elemento della lista graduatoria
 let site = dangerSites[i];
 let itemY = listY + i * (cardItemH + cardGap) - scrollSites;
 let isCardActive = (activeSite === site);
@@ -395,7 +393,7 @@ fill(255);
 textAlign(CENTER, CENTER);
 textStyle(BOLD);
 textSize(12);
-text(`#${site.rank}`, badgeX, badgeY + 0.5);
+text(`#${site.rank}`, badgeX, badgeY + 0.5);// Centra verticalmente il testo del badge
 // Blocco testo centrale
 let textX = x + 58;
 let textMaxW = cardsW - 50;
@@ -405,25 +403,25 @@ textStyle(BOLD);
 textSize(11.8);
 textLeading(13.5);
 text(site.name, textX, itemY + 21, textMaxW);
-let subY = itemY + 46;
+let subY = itemY + 46;// Posizione Y del sottotitolo (Paese + Score)
 fill(site.catCol);
 circle(textX + 4, subY, 8);
 fill(245);
 textStyle(NORMAL);
 textSize(10.5);
-text(`${site.country}  •  Score ${site.score.toFixed(2)}`, textX + 13, subY);
+text(`${site.country}  •  Score ${site.score.toFixed(2)}`, textX + 13, subY);// Centra verticalmente il testo del sottotitolo
 }
 drawingContext.restore();
 // Barra di scorrimento verticale
 if (maxScroll > 0) {
 fill(255, 30);
 rect(sbX, listY, sbW, listH, sbW / 2);
-let thumbH = max(28, listH * (listH / contentH));
-let scrollRatio = scrollSites / maxScroll;
+let thumbH = max(28, listH * (listH / contentH));// Altezza minima della thumb della scrollbar
+let scrollRatio = scrollSites / maxScroll;// Rapporto tra lo scroll corrente e lo scroll massimo
 let thumbY = listY + scrollRatio * (listH - thumbH);
-sbMetrics = { x: sbX, y: listY, w: sbW, h: listH, thumbY, thumbH, maxScroll };
-let isHoverThumb = mouseX >= sbX - 4 && mouseX <= sbX + sbW + 4 &&
-mouseY >= thumbY && mouseY <= thumbY + thumbH;
+sbMetrics = { x: sbX, y: listY, w: sbW, h: listH, thumbY, thumbH, maxScroll };// Salva le metriche della scrollbar per l'interazione con il mouse
+let isHoverThumb = mouseX >= sbX - 4 && mouseX <= sbX + sbW + 4 &&// Controlla se il mouse è sopra la thumb della scrollbar
+mouseY >= thumbY && mouseY <= thumbY + thumbH;// Controlla se il mouse è sopra la thumb della scrollbar
 fill(isHoverThumb || isDraggingScrollbar ? 255 : color(255, 180));
 rect(sbX, thumbY, sbW, thumbH, sbW / 2);
 } else {
@@ -460,19 +458,19 @@ let barsTop = cyBox + 42;
 let barsAvailH = chartBoxH - 50;
 let nBars = max(1, countryBars.length);
 let rowH = barsAvailH / nBars;
-let maxVal = countryBars.length > 0 ? Math.max(...countryBars.map(c => c.count)) : 5;
+let maxVal = countryBars.length > 0 ? Math.max(...countryBars.map(c => c.count)) : 5; // Valore massimo per scalare le barre
 let barRightX = x + w - 28;
 let maxBarW = w - 155;
 let activeCountries = activeSite
 ? activeSite.country.split(',').map(s => normalizzaNomePaese(s.trim()))
 : [];
-for (let i = 0; i < countryBars.length; i++) {
+for (let i = 0; i < countryBars.length; i++) {// Ciclo per disegnare ciascuna barra della graduatoria dei Paesi
 let b = countryBars[i];
 let rowY = barsTop + i * rowH + rowH / 2;
 let barW = map(b.count, 0, maxVal, 14, maxBarW);
 let barH = min(11, rowH * 0.55);
-let isMatch = activeCountries.includes(b.country);
-let alphaRow = activeSite ? (isMatch ? 255 : 55) : 225;
+let isMatch = activeCountries.includes(b.country);// Controlla se il Paese della barra corrisponde a uno dei Paesi del sito attivo (hover o selezione)
+let alphaRow = activeSite ? (isMatch ? 255 : 55) : 225;// Opacità della riga in base allo stato attivo (hover o selezione)
 noStroke();
 fill(255, alphaRow);
 textAlign(LEFT, CENTER);
@@ -508,15 +506,15 @@ text(`Distribuiti in ${countryBars.length} Stati membri UNESCO`, bx + 10, by + 2
 }
 pop();
 }
-// ==========================================
+
 // EVENTI MOUSE
-// ==========================================
+
 function mousePressed() {
 if (sbMetrics &&
-mouseX >= sbMetrics.x - 6 && mouseX <= sbMetrics.x + sbMetrics.w + 6 &&
-mouseY >= sbMetrics.y && mouseY <= sbMetrics.y + sbMetrics.h) {
-isDraggingScrollbar = true;
-if (mouseY >= sbMetrics.thumbY && mouseY <= sbMetrics.thumbY + sbMetrics.thumbH) {
+mouseX >= sbMetrics.x - 6 && mouseX <= sbMetrics.x + sbMetrics.w + 6 &&// Controlla se il mouse è sopra la scrollbar (con un margine di 6px)
+mouseY >= sbMetrics.y && mouseY <= sbMetrics.y + sbMetrics.h) {// Controlla se il mouse è dentro l'area della scrollbar
+isDraggingScrollbar = true;// Inizia il trascinamento della scrollbar
+if (mouseY >= sbMetrics.thumbY && mouseY <= sbMetrics.thumbY + sbMetrics.thumbH) {// Controlla se il mouse è sopra la thumb della scrollbar
 scrollbarDragOffset = mouseY - sbMetrics.thumbY;
 } else {
 scrollbarDragOffset = sbMetrics.thumbH / 2;
@@ -529,7 +527,7 @@ let panelW = constrain(width * 0.25, 275, 365);
 let panelX = width - panelW - 28;
 let panelTop = height * 0.06;
 let panelTotalH = height * 0.88;
-let hoveredCard = checkListHover(panelX, panelTop, panelW, panelTotalH);
+let hoveredCard = checkListHover(panelX, panelTop, panelW, panelTotalH);// Controlla se il mouse è sopra un elemento della lista graduatoria
 let clickedSite = hoveredDot || hoveredCard;
 if (clickedSite) {
 selectedSite = (selectedSite === clickedSite) ? null : clickedSite;
@@ -538,14 +536,14 @@ selectedSite = null;
 }
 }
 function mouseDragged() {
-if (isDraggingScrollbar && sbMetrics) {
+if (isDraggingScrollbar && sbMetrics) {// Se stiamo trascinando la scrollbar, aggiorna lo scroll in base alla posizione del mouse
 aggiornaScrollDaMouse();
 }
 }
 function mouseReleased() {
-isDraggingScrollbar = false;
+isDraggingScrollbar = false;// Termina il trascinamento della scrollbar
 }
-function aggiornaScrollDaMouse() {
+function aggiornaScrollDaMouse() {// Aggiorna la posizione dello scroll in base alla posizione del mouse durante il trascinamento della scrollbar
 if (!sbMetrics) return;
 let trackTravel = sbMetrics.h - sbMetrics.thumbH;
 if (trackTravel <= 0) return;
@@ -553,7 +551,7 @@ let newThumbY = constrain(mouseY - scrollbarDragOffset, sbMetrics.y, sbMetrics.y
 let ratio = (newThumbY - sbMetrics.y) / trackTravel;
 scrollSites = ratio * sbMetrics.maxScroll;
 }
-function mouseWheel(event) {
+function mouseWheel(event) {// Controlla se il mouse è sopra il pannello destro (lista graduatoria) per consentire lo scroll con la rotellina del mouse
 let panelW = constrain(width * 0.25, 275, 365);
 let panelX = width - panelW - 28;
 if (mouseX >= panelX && mouseX <= panelX + panelW) {
@@ -561,9 +559,9 @@ scrollSites += event.delta * 0.5;
 return false;
 }
 }
-// ==========================================
+
 // COLONNA FOCUS A SINISTRA
-// ==========================================
+
 function disegnaColonnaFocus(xCentro, yTop, larghezzaColonna, altezzaTotale, datiArea) {
 push();
 translate(xCentro, yTop);
@@ -666,17 +664,17 @@ textSize(12);
 text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
 pop();
 }
-// ==========================================
+
 // STRUTTURA RADAR (5 ANELLI IN GRADAZIONE TENUE -> ACCESO)
-// ==========================================
+
 function drawRings() {
 noFill();
 drawingContext.setLineDash([14, 10]);
-for (let i = 0; i < RINGS.length; i++) {
+for (let i = 0; i < RINGS.length; i++) {// Ciclo per disegnare ciascun anello del radar
 let st = RING_STYLES[i];
 stroke(255, st.alpha);
 strokeWeight(st.weight);
-circle(cx, cy, 2 * R * RINGS[i]);
+circle(cx, cy, 2 * R * RINGS[i]);// Disegna il cerchio con il raggio corretto in base al livello di anello
 }
 drawingContext.setLineDash([]);
 }
@@ -684,17 +682,17 @@ function drawSpokes() {
 stroke(255, 75);
 strokeWeight(1.2);
 drawingContext.setLineDash([10, 10]);
-for (let i = 0; i < 8; i++) {
-const a = radians(i * 45);
-line(cx, cy, cx + cos(a) * R * 1.02, cy + sin(a) * R * 1.02);
+for (let i = 0; i < 8; i++) {// Disegna 8 raggi a 45° l'uno dall'altro
+const a = radians(i * 45);// Angolo in radianti per ciascun raggio
+line(cx, cy, cx + cos(a) * R * 1.02, cy + sin(a) * R * 1.02);// Estende leggermente i raggi oltre il cerchio più esterno
 }
 drawingContext.setLineDash([]);
 }
-function drawLabels() {
+function drawLabels() {// Disegna le etichette delle macrocategorie attorno al radar
 noStroke();
 fill(255);
 textAlign(CENTER, CENTER);
 textSize(max(10, R * 0.054));
 textLeading(max(12, R * 0.064));
-for (const l of LABELS) text(l.t, cx + l.dx * R, cy + l.dy * R);
+for (const l of LABELS) text(l.t, cx + l.dx * R, cy + l.dy * R);// Disegna ciascuna etichetta in base alle coordinate relative al centro del radar
 }
