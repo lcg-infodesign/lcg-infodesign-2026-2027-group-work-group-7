@@ -13,7 +13,7 @@
 
     // Colori palette Tempio
       let coloreSfondo = "#0B2545";
-      let coloreTempioChiaro = "#1e3a5c";
+      let coloreTempioChiaro = "#3b587b";
       let coloreTempioScuro = "rgb(20, 31, 43)";
     
     //Variabili dati
@@ -21,12 +21,12 @@
       let datiSitoUnesco;
 
       let datiMacro = [
-        {code: 'EUR', label: 'EUROPA', culturali:0, naturali:0, misti:0},
-        {code: 'NA', label: 'NORD AMERICA', culturali:0, naturali:0, misti:0},
-        {code: 'APA', label: 'ASIA E PACIFICO', culturali:0, naturali:0, misti:0},
-        {code: 'LAC', label: 'AMERICA LATINA', culturali:0, naturali:0, misti:0},
-        {code: 'AFR', label: 'AFRICA', culturali:0, naturali:0, misti:0},
-        {code: 'ARB', label: 'STATI ARABI', culturali:0, naturali:0, misti:0},
+        { code: 'EUR', label: 'EUROPA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'NA',  label: 'NORD AMERICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'APA', label: 'ASIA E PACIFICO', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'LAC', label: 'AMERICA LATINA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'AFR', label: 'AFRICA', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
+        { code: 'ARB', label: 'STATI ARABI', culturali: 0, naturali: 0, misti: 0, culturaliPericolo: 0, naturaliPericolo: 0, mistiPericolo: 0 },
       ];
 
 // AGGIORNAMENTO SPAZI
@@ -60,20 +60,25 @@ function aggiornaCentraggioTempio() {
   for (let r = 0; r < datiSitoUnesco.getRowCount(); r++) {
     let codiceArea = datiSitoUnesco.getString(r, 'Region_Code');
     let categoria  = datiSitoUnesco.getString(r, 'Category');
+    let dangerRaw  = datiSitoUnesco.getString(r, 'Danger');
+    let inPericolo = dangerRaw && dangerRaw.trim().toUpperCase() === 'TRUE';
 
-  //ciclo per dividere i siti per categorie
-  for (let i=0; i < datiMacro.length; i++){
-    if (datiMacro[i].code === codiceArea){
-      if (categoria === 'Cultural'){
+  //ciclo per dividere i siti per categorie e per i siti in pericolo
+  for (let i = 0; i < datiMacro.length; i++) {
+    if (datiMacro[i].code === codiceArea) {
+      if (categoria === 'Cultural') {
         datiMacro[i].culturali++;
-      } else if (categoria === 'Natural'){
+        if (inPericolo) datiMacro[i].culturaliPericolo++;
+      } else if (categoria === 'Natural') {
         datiMacro[i].naturali++;
+        if (inPericolo) datiMacro[i].naturaliPericolo++;
       } else if (categoria === 'Mixed') {
         datiMacro[i].misti++;
-      }
+        if (inPericolo) datiMacro[i].mistiPericolo++;
       }
     }
   }
+}
 }
 
 // AGGIORNAMENTO E RIDIMENSIONAMENTO
@@ -351,12 +356,13 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
         
 
         let serie = [
-          {val: datiArea.culturali, col: '#EBBF44'},
-          {val: datiArea.naturali, col: '#B8DD62'},
-          {val: datiArea.misti, col: '#65DAE3'}
+          { val: datiArea.culturali, pericolo: datiArea.culturaliPericolo, col: '#EBBF44' },
+          { val: datiArea.naturali,  pericolo: datiArea.naturaliPericolo,  col: '#B8DD62' },
+          { val: datiArea.misti,     pericolo: datiArea.mistiPericolo,     col: '#65DAE3' }
         ];
 
         // Spazi centrali tra le linee: indici 1, 2 e 3 (su 5 spazi totali tra 6 linee)
+        let colorePericolo = '#ff1500';
         let indiciSpaziCentrali = [1, 2, 3];
         let larghezzaBarra = max(2, spazioTraLinee - 3); // larghezza tra una linea e l'altra (tolto lo spessore linea)
 
@@ -364,12 +370,33 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           let hBarra = map(serie[b].val, 0, valoreMax, 0, altezzaMaxBarre);
           hBarra = constrain(hBarra, 4, altezzaMaxBarre);
 
+          let hPericolo = 0;
+          if (serie[b].pericolo > 0) {
+            hPericolo = map(serie[b].pericolo, 0, valoreMax, 0, altezzaMaxBarre);
+            hPericolo = constrain(hPericolo, 3, altezzaMaxBarre);
+          }
+
           let indiceSpazio = indiciSpaziCentrali[b];
           let xBarra = xInizioFusto + indiceSpazio * spazioTraLinee + 1.5;
-          let yBarra = yFineFusto - hBarra;
+          let yBaseBarra = yFineFusto + 4 - hBarra;
 
-          fill(serie[b].col);
-          rect(xBarra, yBarra + 4, larghezzaBarra, hBarra);
+          if (hPericolo > 0) {
+            // Parte inferiore/principale della categoria (spigoli retti in alto dove appoggia il rosso)
+            fill(serie[b].col);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, 0, 0, 0, 0);
+
+            // Segmento rosso in pericolo sopra la barra (arrotondato solo in alto)
+            let yRosso = yBaseBarra - hPericolo;
+            let raggioRosso = min(larghezzaBarra / 3, hPericolo / 2);
+
+            fill(colorePericolo);
+            rect(xBarra, yRosso, larghezzaBarra, hPericolo, raggioRosso, raggioRosso, 0, 0);
+          } else {
+            // Nessun sito in pericolo: barra arrotondata solo in alto
+            let raggioBase = min(larghezzaBarra / 2, hBarra / 2);
+            fill(serie[b].col);
+            rect(xBarra, yBaseBarra, larghezzaBarra, hBarra, raggioBase, raggioBase, 0, 0);
+          }
         }
       pop();
 
