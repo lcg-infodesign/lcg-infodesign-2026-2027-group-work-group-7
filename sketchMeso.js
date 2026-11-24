@@ -1,7 +1,7 @@
 // Radar circolare (8 categorie inglese + 5 anelli gradazione) + Colonna Focus + Graduatoria Destra – p5.js (livello MESO)
 
-const BG = '#1a1f4a';
-const COL_TEMPIO = '#28326b';
+const BG = '#0B2545';
+const COL_TEMPIO = '#1e3a5c';
 const COL_TESTO = '#FDF0D6';
 
 // Colori categorie siti
