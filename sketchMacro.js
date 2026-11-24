@@ -6,8 +6,10 @@
       let xInizioTempio;
       let yInizioTempio;
 
-      let larghezzaTempio = 1300;
-      let altezzaTempio = 800;
+      let larghezzaTempio;
+      let altezzaTempio;
+      let larghezzaMaxTempio = 1000; // dimensione massima su schermi grandi
+      let altezzaMaxTempio = 680;
 
     // Colori palette Tempio
       let coloreSfondo = "#0B2545";
@@ -29,12 +31,18 @@
 
 // AGGIORNAMENTO SPAZI
 function aggiornaCentraggioTempio() {
+  let margineMinimo = 20;
 // max => prende il numero più grande di quelli presenti.
-// Margine sinistro e destro uguali (minimo 20px se la finestra è stretta)
-  marginiOrizzontali = max(20, (windowWidth - larghezzaTempio) / 2);
+// Adatta il tempio allo spazio disponibile mantenendo le proporzioni (~1300:800)
+  let rapporto = 1300 / 800;
+  let dispW = max(240, windowWidth - margineMinimo * 2);
+  let dispH = max(200, windowHeight - margineMinimo * 2);
 
-  // Margine alto e basso uguali (minimo 20px se la finestra è bassa)
-  marginiVerticali = max(20, (windowHeight - altezzaTempio) / 2);
+  larghezzaTempio = min(larghezzaMaxTempio, dispW, dispH * rapporto);
+  altezzaTempio = larghezzaTempio / rapporto;
+
+  marginiOrizzontali = (windowWidth - larghezzaTempio) / 2;
+  marginiVerticali = (windowHeight - altezzaTempio) / 2;
 
   xInizioTempio = marginiOrizzontali;
   yInizioTempio = marginiVerticali;
@@ -79,9 +87,9 @@ function draw () {
   background (coloreSfondo);
   
   // Variabili del Tempio
-    let altezzaFrontone = 200;
-    let spessoreBase = 25;
-    let distanzaFrontoneColonne = 10
+    let altezzaFrontone = altezzaTempio * 0.25;
+    let spessoreBase = max(16, altezzaTempio * 0.03);
+    let distanzaFrontoneColonne = max(6, altezzaTempio * 0.0125);     
     let altezzaColonne = altezzaTempio - altezzaFrontone - spessoreBase - distanzaFrontoneColonne;
     
     let yInizioColonne = yInizioTempio + altezzaFrontone + distanzaFrontoneColonne;
@@ -125,8 +133,8 @@ function disegnaFrontone (xInizioTempio, yInizioTempio,larghezzaTempio, altezzaF
     let angoloGradi = 12; // Inclinazione verso il basso ai lati
     let angoloRad = radians(angoloGradi);
 
-    let spessoreFascia = 25;
-    let distanzaTraFasce = 45;
+    let spessoreFascia = max(10, altezzaFrontone * 0.125);
+    let distanzaTraFasce = altezzaFrontone * 0.225;
 
     // Larghezza orizzontale finale (pk l'inclinazione rende il rettangolo più corto)
     let lunghezzaBraccio = (larghezzaTempio / 2) / cos(angoloRad);
@@ -166,9 +174,9 @@ function disegnaFrontone (xInizioTempio, yInizioTempio,larghezzaTempio, altezzaF
       pop();
 
       // Taglio orizzontale (per fare il frontone come nel logo)
-      let spostamentoTaglioOrizzontale = 120;
+      let spostamentoTaglioOrizzontale = altezzaFrontone * 0.60;
       let yTgalioOrizzontale = yPunta2 + spostamentoTaglioOrizzontale
-      let AltezzaRettangoloTaglio = 200;
+      let AltezzaRettangoloTaglio = altezzaFrontone;
 
       push ();
       noStroke ();
@@ -192,8 +200,8 @@ function disegnaColonne ( xInizioTempio, yInizioColonne, larghezzaTempio, altezz
   noStroke ();
 
     let numeroColonne = datiMacro.length;
-    let larghezzaColonna = 160;
-    let margineLato = 20; // rientro uguale a sinistra e a destra rispetto al tempio
+    let larghezzaColonna = larghezzaTempio * (160 / 1300);
+    let margineLato = larghezzaTempio * (20 / 1300);
 
     // spazio tra una colonna e un'altra, sulla base della grandezza totale del Tempio
     // max => prende il numero più grande di quelli presenti.
@@ -229,10 +237,10 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
     let altezzaTotale = max(80, altezzaDisponibile);
 
     // Suddivisione verticale interna della colonna
-    let altezzaCapitello = 50;
-    let altezzaPiede = 30;
-    let distanzaPiedeBase = 10;
-    let distanzaFrontoneColonne = 10
+    let altezzaCapitello = altezzaTotale * 0.105;
+    let altezzaPiede = altezzaTotale * 0.063;
+    let distanzaPiedeBase = max(4, altezzaTotale * 0.02);
+    let distanzaFrontoneColonne = max(4, altezzaTotale * 0.02);
 
     let larghezzaCapitello = larghezzaColonna * 1.1;
 
@@ -246,7 +254,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
         fill (coloreTempioChiaro);
 
         // 3.1.1 abacoAlto (con estremi leggermente inclinati)
-          let hAbacoAlto = 12;
+          let hAbacoAlto = altezzaCapitello * 0.24;
           let wAltoSopra = larghezzaCapitello * 0.88; // bordo superiore leggermente più stretto
           let wAltoSotto = larghezzaCapitello * 0.96; // base leggermente più ampia
           let yAbacoAlto = 0 + distanzaFrontoneColonne;
@@ -259,9 +267,9 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           );
 
         // 3.1.2 abacoBasso (fascia sottile subito sotto, separata da un piccolo stacco)
-          let spazioStacco = 3; // piccola riga/stacco orizzontale come nell'immagine
+          let spazioStacco = max(1.5, altezzaCapitello * 0.06); // piccola riga/stacco orizzontale come nell'immagine
           let yAbacoBasso = yAbacoAlto + hAbacoAlto + spazioStacco;
-          let hAbacoBasso = 12;
+          let hAbacoBasso = altezzaCapitello * 0.24;
           let wBassoSopra = larghezzaCapitello * 0.96;
           let wBassoSotto = larghezzaCapitello * 0.88;
 
@@ -273,13 +281,13 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           );
 
         // 3.1.3 Corpo (parte centrale del capitello)
-          let hCollarino = 6;
+          let hCollarino = altezzaCapitello * 0.12;
           let yCorpo = yAbacoBasso + hAbacoBasso + spazioStacco;
           // Arriva fino a poco sopra il collarino, rispettando altezzaCapitello
           let yFineCorpo = max(yCorpo + 16, yInizioFusto - hCollarino);
           let hCorpo = yFineCorpo - yCorpo;
 
-          let wCorpoSopra = wBassoSotto - 10;
+          let wCorpoSopra = max(10, wBassoSotto - larghezzaColonna * 0.06);
           let wCorpoSotto = larghezzaColonna * 0.60;
           let yMeta = yCorpo + hCorpo * 0.5;
           let wMeta = (wCorpoSopra + wCorpoSotto) * 0.45; // leggermente più stretto a metà per dare la curva
@@ -308,7 +316,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           pop ();
 
         // 3.1.5 Collarino Fusto (fascia finale che chiude il capitello)
-          let wCollarino = wFascia - 15;
+          let wCollarino = max(8, wFascia - larghezzaColonna * 0.09);
           let yCollarino = yFineCorpo + spazioStacco;
           rect(-wCollarino / 2, yCollarino, wCollarino, hCollarino);
       pop ();
@@ -316,7 +324,8 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
     // 3.2 FUSTO COLONNA
       push ();
         stroke(coloreTempioChiaro);
-        strokeWeight(3);
+        let spessoreLineaFusto = max(1.5, larghezzaColonna * 0.01875);
+        strokeWeight(spessoreLineaFusto);
 
         let numeroLinee = 6;
         let larghezzaFasciaLinee = larghezzaColonna / 2;
@@ -395,7 +404,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
         // 3. Base finale del piede
         let y3 = y2 + h2 + staccoPiede;
         let w3 = larghezzaCapitello * 0.84;
-        rect(-w3 / 2, y3, w3, 6);
+        rect(-w3 / 2, y3, w3, hUtilePiede * 0.20);
        pop ();
   pop ();
 
@@ -403,7 +412,7 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
       textFont(fontFutura);
       fill('#FDF0D6');
       textAlign(CENTER, CENTER);
-      textSize(12);
+      textSize(max(9, larghezzaColonna * 0.075));
       text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
   pop();
 pop();
