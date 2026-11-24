@@ -333,9 +333,13 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
     //BARRE DATI
       push();
         noStroke();
-        let valoreMax = 500;
-        let yBaseBarre = yFineFusto - 4;
-        let altezzaMaxBarre = (yFineFusto - 4)-(yInizioFusto+8);
+        rectMode (CORNER);
+
+        let valoreMax = 500; // Valore di riferimento massimo sulla scala dei dati: Il numero massimo di siti corrispondono all'altezza massima disponibile
+        // Calcola l'altezza massima che può raggiungere una barra lungo il fusto:
+        // prende la distanza tra la base delle linee (yFineFusto + 3) e il loro inizio alto (yInizioFusto + spazioStacco),
+        let altezzaMaxBarre = max(10, (yFineFusto + 3) - (yInizioFusto + spazioStacco));
+        
 
         let serie = [
           {val: datiArea.culturali, col: '#EBBF44'},
@@ -343,16 +347,20 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
           {val: datiArea.misti, col: '#65DAE3'}
         ];
 
-        let larghezzaBarra = 18;
-        let distanzaBarre = 28;
-        let startX = -37;
+        // Spazi centrali tra le linee: indici 1, 2 e 3 (su 5 spazi totali tra 6 linee)
+        let indiciSpaziCentrali = [1, 2, 3];
+        let larghezzaBarra = max(2, spazioTraLinee - 3); // larghezza tra una linea e l'altra (tolto lo spessore linea)
 
-        for (let b=0; b < serie.length; b++){
+        for (let b = 0; b < serie.length; b++) {
           let hBarra = map(serie[b].val, 0, valoreMax, 0, altezzaMaxBarre);
-          hBarra = max(hBarra, 6);
+          hBarra = constrain(hBarra, 4, altezzaMaxBarre);
 
-          fill (serie[b].col);
-          rect(startX + b * distanzaBarre, yBaseBarre - hBarra, larghezzaBarra, hBarra, larghezzaBarra/2);
+          let indiceSpazio = indiciSpaziCentrali[b];
+          let xBarra = xInizioFusto + indiceSpazio * spazioTraLinee + 1.5;
+          let yBarra = yFineFusto - hBarra;
+
+          fill(serie[b].col);
+          rect(xBarra, yBarra + 4, larghezzaBarra, hBarra);
         }
       pop();
 
@@ -397,8 +405,8 @@ function disegnaColonna (larghezzaColonna, altezzaColonne, altezzaDisponibile, d
       textAlign(CENTER, CENTER);
       textSize(12);
       text(datiArea.label, 0, altezzaTotale + spessoreBase / 2);
-    pop();
   pop();
+pop();
 }
 
 
